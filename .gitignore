@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+.coverage
+htmlcov/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+
+# Data: cached/normalized tiles are large and reproducible. Keep only small samples.
+data/cache/
+data/tiles/
+data/*.duckdb
+data/*.parquet
+!data/samples/
+!data/samples/**
+
+# Secrets
+.env
+.env.local
+*.pem
+.secrets/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Build artifacts
+docs/assets/*.gif
+!docs/assets/.gitkeep

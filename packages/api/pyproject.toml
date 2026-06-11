@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lithos-api"
+version = "0.1.0"
+description = "LITHOS public REST + GraphQL API serving coverage, points, time series, and anomalies."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Northflow Technologies", email = "hello@lithos.earth" }]
+dependencies = [
+  "lithos-core",
+  "lithos-ingest",
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
+  "strawberry-graphql>=0.220",
+  "pydantic>=2.5",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.4",
+  "pytest-cov>=4.1",
+  "httpx>=0.27",
+  "pyright>=1.1.350",
+  "ruff>=0.4",
+]
+
+[project.scripts]
+lithos-api = "lithos_api.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["lithos_api"]
+
+[tool.hatch.metadata]
+allow-direct-references = true

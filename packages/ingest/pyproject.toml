@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lithos-ingest"
+version = "0.1.0"
+description = "LITHOS data-source adapters (EGMS, LiCSAR) normalising into the canonical schema."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Northflow Technologies", email = "hello@lithos.earth" }]
+dependencies = [
+  "lithos-core",
+  "numpy>=1.24",
+  "httpx>=0.27",
+  "pydantic>=2.5",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.4",
+  "pytest-cov>=4.1",
+  "respx>=0.21",
+  "pyright>=1.1.350",
+  "ruff>=0.4",
+]
+
+[project.scripts]
+lithos-build-hero = "lithos_ingest.hero:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["lithos_ingest"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
