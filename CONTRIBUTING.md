@@ -15,6 +15,8 @@ Thank you for helping make ground-motion data readable for everyone. LITHOS is A
 # Python packages (core, ingest, api) use one virtualenv.
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e "packages/core[dev]" -e "packages/ingest[dev]" -e "packages/api[dev]"
+# distributions install as pylithos-core / pylithos-ingest / pylithos-api
+# (the bare `lithos` name is taken on PyPI); import modules stay lithos_core etc.
 
 # Run the test suite
 pytest packages

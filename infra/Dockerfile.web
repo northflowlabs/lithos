@@ -1,0 +1,29 @@
+# LITHOS web image (standalone Next.js). Build context = repo root:
+#   docker build -f infra/Dockerfile.web -t lithos-web .
+FROM node:20-slim AS deps
+WORKDIR /app
+RUN corepack enable
+COPY packages/web/package.json packages/web/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+FROM node:20-slim AS build
+WORKDIR /app
+RUN corepack enable
+COPY --from=deps /app/node_modules ./node_modules
+COPY packages/web/ ./
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm build
+
+FROM node:20-slim AS run
+WORKDIR /app
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
+RUN corepack enable
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/.next ./.next
+COPY --from=build /app/public ./public
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/next.config.mjs ./next.config.mjs
+EXPOSE 3000
+RUN useradd --create-home lithos && chown -R lithos:lithos /app
+USER lithos
+CMD ["pnpm", "start"]

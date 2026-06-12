@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import time
+from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import Body, FastAPI, HTTPException, Query, Request, Response
+from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import PlainTextResponse
 from strawberry.fastapi import GraphQLRouter
 
 from lithos_api import serialize
@@ -31,6 +33,21 @@ log = logging.getLogger("lithos.api")
 API_VERSION = "v1"
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    # Warm the hero verdict cache in a background thread so the first anomaly request
+    # is served from cache and the hero view stays under the three-second wow gate.
+    def _warm() -> None:
+        try:
+            n = get_catalog().warm_hero()
+            log.info("hero warm-up complete: %d points cached", n)
+        except Exception as exc:  # never block or crash startup on warm-up
+            log.warning("hero warm-up failed: %s", exc)
+
+    threading.Thread(target=_warm, name="lithos-warm", daemon=True).start()
+    yield
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="LITHOS API",
@@ -41,6 +58,7 @@ def create_app() -> FastAPI:
             "Dry-land surface motion only. Observed motion and anomalies, never failure forecasts."
         ),
         license_info={"name": "Apache-2.0", "url": "https://www.apache.org/licenses/LICENSE-2.0"},
+        lifespan=_lifespan,
     )
 
     origins = os.getenv("LITHOS_API_CORS_ORIGINS", "http://localhost:3000").split(",")

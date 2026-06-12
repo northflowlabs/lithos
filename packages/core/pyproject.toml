@@ -3,7 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "lithos-core"
+# Distribution name lives under the `pylithos` namespace because the bare `lithos`
+# name is already taken on PyPI. Import module stays `lithos_core` (brand-consistent).
+name = "pylithos-core"
 version = "0.1.0"
 description = "LITHOS canonical ground-motion schema and anomaly engine (Apache-2.0, standard statistics only)."
 readme = "README.md"

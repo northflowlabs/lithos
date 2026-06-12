@@ -78,6 +78,31 @@ class LithosCatalog:
                 log.warning("source %s failed on get_point: %s", getattr(src, "key", "?"), exc)
         return None
 
+    # --- warm-up -----------------------------------------------------------------
+    def warm_hero(self) -> int:
+        """Precompute and cache verdicts for the cached hero scene so the first
+        anomaly request is served from cache and the hero view stays under the
+        three-second wow gate. Safe to call at startup; returns points warmed."""
+        warmed = 0
+        for src in self.sources:
+            if getattr(src, "key", None) != "sample":
+                continue
+            lister = getattr(src, "query_points", None)
+            cover = getattr(src, "list_coverage", None)
+            if not lister or not cover:
+                continue
+            try:
+                cells = cover()
+                if not cells:
+                    continue
+                bbox = BBox(*cells[0].bbox)
+                for p in lister(bbox):
+                    self.verdict_for(p)
+                    warmed += 1
+            except Exception as exc:
+                log.warning("hero warm-up skipped: %s", exc)
+        return warmed
+
     # --- anomalies ---------------------------------------------------------------
     def verdict_for(self, point: MeasurementPoint) -> PointVerdict:
         cached = self._verdict_cache.get(point.id)

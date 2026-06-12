@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+# LITHOS — open ground-motion intelligence. https://lithos.earth

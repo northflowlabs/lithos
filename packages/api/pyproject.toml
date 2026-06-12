@@ -3,7 +3,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "lithos-api"
+# Under the `pylithos` PyPI namespace (bare `lithos` is taken). Import module stays `lithos_api`.
+name = "pylithos-api"
 version = "0.1.0"
 description = "LITHOS public REST + GraphQL API serving coverage, points, time series, and anomalies."
 readme = "README.md"
@@ -11,8 +12,8 @@ requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Northflow Technologies", email = "hello@lithos.earth" }]
 dependencies = [
-  "lithos-core",
-  "lithos-ingest",
+  "pylithos-core",
+  "pylithos-ingest",
   "fastapi>=0.110",
   "uvicorn[standard]>=0.29",
   "strawberry-graphql>=0.220",

@@ -1,0 +1,49 @@
+# One-command local bring-up for LITHOS.
+#   docker compose -f infra/docker-compose.yml up --build
+# The API serves the cached hero scene with no credentials. Add EGMS_USERNAME /
+# EGMS_PASSWORD in a root .env to pull live EGMS tiles.
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    image: lithos-api:local
+    ports:
+      - "8000:8000"
+    environment:
+      LITHOS_API_CORS_ORIGINS: "http://localhost:3000"
+      LITHOS_LOG_LEVEL: "INFO"
+      EGMS_USERNAME: "${EGMS_USERNAME:-}"
+      EGMS_PASSWORD: "${EGMS_PASSWORD:-}"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.web
+    image: lithos-web:local
+    ports:
+      - "3000:3000"
+    environment:
+      # The browser talks to the API directly, so this is the host-visible URL.
+      NEXT_PUBLIC_LITHOS_API: "http://localhost:8000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # Optional spatial store for scale-out ingest. The default deployment uses the
+  # cached/DuckDB path and does not need this; uncomment to index large tile sets.
+  # db:
+  #   image: postgis/postgis:16-3.4
+  #   environment:
+  #     POSTGRES_USER: lithos
+  #     POSTGRES_PASSWORD: lithos
+  #     POSTGRES_DB: lithos
+  #   volumes:
+  #     - lithos_db:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+
+# volumes:
+#   lithos_db:

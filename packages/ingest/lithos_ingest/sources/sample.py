@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Optional
 
 from lithos_core.schema import (
-    AvailabilityStatus,
     CoverageCell,
     MeasurementPoint,
     SourceMeta,

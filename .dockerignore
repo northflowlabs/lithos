@@ -1,0 +1,11 @@
+# Used by both Dockerfiles (build context = repo root).
+**/node_modules
+**/.next
+**/.venv
+**/__pycache__
+**/*.egg-info
+.git
+data/cache
+data/tiles
+data/*.duckdb
+docs/assets/*.gif
