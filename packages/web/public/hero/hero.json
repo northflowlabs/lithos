@@ -1,0 +1,1 @@
+{"bbox": [11.27, 44.43, 11.47, 44.57], "center": [11.343, 44.494], "window": "2019-2023", "name": "Bologna subsidence (hero scene)", "note": "Synthetic demonstration scene modelled on the Bologna subsidence bowl so the app renders offline. Replace with a real EGMS tile via the egms adapter.", "is_synthetic": true}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, timeSeriesToCsv } from "@/lib/api";
 import { velocityColor } from "@/lib/colormap";
 import type { PointProperties } from "@/lib/types";
 import { CiteBox } from "./CiteBox";
@@ -103,12 +103,22 @@ export default function PointPanel({ pointId, properties, permalink, onClose }: 
 
         {/* export */}
         <div className="flex gap-2">
-          <a
-            href={api.timeSeriesCsvUrl(pointId)}
-            className="flex-1 text-center rounded border border-ink-600 bg-ink-800 px-2 py-1.5 text-xs hover:border-ink-400"
+          <button
+            disabled={!ts.data}
+            onClick={() => {
+              if (!ts.data) return;
+              const blob = new Blob([timeSeriesToCsv(ts.data)], { type: "text/csv" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `${pointId}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="flex-1 text-center rounded border border-ink-600 bg-ink-800 px-2 py-1.5 text-xs hover:border-ink-400 disabled:opacity-40"
           >
             Export CSV
-          </a>
+          </button>
         </div>
       </div>
 
