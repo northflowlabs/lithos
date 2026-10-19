@@ -44,12 +44,6 @@ It is built for journalists, OSINT researchers, civil engineers, geologists, pla
 - **Web app:** **[app.lithos.earth](#)** opens on a real subsiding city. Pan anywhere covered, click a point, see its history.
 - **Notebook:** [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](packages/notebook/lithos_quickstart.ipynb) Pick a location, pull the data, run the anomaly scan, plot it. Nothing to set up.
 
-<!-- DEMO GIF: click a point -> side panel slides in -> time-series chart draws ->
-     plain-language anomaly verdict appears. One loop, under 6 seconds. -->
-<div align="center">
-<img src="docs/assets/demo.gif" alt="Clicking a point and reading its ground-motion history and anomaly flag" width="720"/>
-</div>
-
 ---
 
 ## What it does
@@ -100,7 +94,7 @@ Coverage expands over time. Each expansion is announced. If your region is not c
 LITHOS runs locally with one command. You will need a **free Copernicus account** to download EGMS data ([register here](https://dataspace.copernicus.eu/), no cost). LITHOS ships with a cached hero scene, so it renders the default view even before you add credentials.
 
 ```bash
-git clone https://github.com/northflow/lithos.git
+git clone https://github.com/northflowlabs/lithos.git
 cd lithos
 cp .env.example .env        # add your free Copernicus credentials (optional for the hero scene)
 docker compose -f infra/docker-compose.yml up --build
@@ -157,7 +151,7 @@ If LITHOS supported your research, reporting, or analysis, please cite it:
 
 ```
 Northflow Technologies (2026). LITHOS: open access ground-motion intelligence.
-https://github.com/northflow/lithos
+https://github.com/northflowlabs/lithos
 ```
 
 **Used LITHOS in a story or a study?** We would genuinely like to know. Open an issue with the `showcase` label or write to hello@lithos.earth. Real-world use is the only metric we care about.
@@ -185,7 +179,7 @@ https://github.com/northflow/lithos
 
 ## Contributing
 
-Contributions are welcome: new coverage adapters, anomaly methods, translations, documentation, and bug reports. Start with [`CONTRIBUTING.md`](CONTRIBUTING.md) and the [good first issues](https://github.com/northflow/lithos/labels/good%20first%20issue).
+Contributions are welcome: new coverage adapters, anomaly methods, translations, documentation, and bug reports. Start with [`CONTRIBUTING.md`](CONTRIBUTING.md) and the [good first issues](https://github.com/northflowlabs/lithos/labels/good%20first%20issue).
 
 **An honest note on maintenance.** LITHOS is community-supported and maintained on a part-time basis. We aim to triage issues and review pull requests weekly, but response times will vary. If something is broken, a clear, reproducible issue is the fastest way to get it fixed, including by you.
 
