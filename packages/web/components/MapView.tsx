@@ -1,10 +1,17 @@
 "use client";
 
-import maplibregl, { type GeoJSONSource, type Map as MlMap } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import type { GeoJSONSource, Map as MlMap } from "maplibre-gl";
 import { useCallback, useEffect, useRef } from "react";
 import { velocityColorExpression } from "@/lib/colormap";
 import type { CoverageProperties, FeatureCollection, PointProperties } from "@/lib/types";
 import { basemapStyle } from "./basemap";
+
+// MapLibre 6 is ESM only and needs the worker URL set once for bundlers. Next emits
+// the worker as a hashed asset from this URL expression.
+maplibregl.setWorkerUrl(
+  new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url).toString(),
+);
 
 type PointFC = FeatureCollection<{ type: "Point"; coordinates: [number, number] }, PointProperties>;
 type CoverageFC = FeatureCollection<{ type: "Polygon"; coordinates: number[][][] }, CoverageProperties>;
@@ -53,15 +60,16 @@ export default function MapView(props: MapViewProps) {
       center: props.center,
       zoom: props.zoom,
       attributionControl: { compact: true },
-      preserveDrawingBuffer: true, // needed for PNG export
+      canvasContextAttributes: { preserveDrawingBuffer: true }, // needed for PNG export
     });
     mapRef.current = map;
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
     map.on("load", () => {
-      map.addSource("points", { type: "geojson", data: EMPTY_FC as never });
-      map.addSource("coverage", { type: "geojson", data: EMPTY_FC as never });
+      // Seed with whatever data already arrived before the style finished loading.
+      map.addSource("points", { type: "geojson", data: (propsRef.current.points ?? EMPTY_FC) as never });
+      map.addSource("coverage", { type: "geojson", data: (propsRef.current.coverage ?? EMPTY_FC) as never });
       map.addSource("aoi", { type: "geojson", data: EMPTY_FC as never });
 
       // Coverage: available (subtle) vs empty (hatched grey), honest by construction.
@@ -191,9 +199,11 @@ export default function MapView(props: MapViewProps) {
   }, []);
 
   // --- react to data/layer changes ---------------------------------------------
+  // Guard on the source rather than isStyleLoaded(): the latter is false while any
+  // tile is still loading, which would drop the update with nothing to retry it.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map) return;
     (map.getSource("points") as GeoJSONSource | undefined)?.setData(
       (props.points ?? EMPTY_FC) as never,
     );
@@ -201,7 +211,7 @@ export default function MapView(props: MapViewProps) {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map) return;
     (map.getSource("coverage") as GeoJSONSource | undefined)?.setData(
       (props.coverage ?? EMPTY_FC) as never,
     );

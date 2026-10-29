@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import "./globals.css";
+// MapLibre CSS first so the app styles (Tailwind utilities on the map container) win.
 import "maplibre-gl/dist/maplibre-gl.css";
+import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
