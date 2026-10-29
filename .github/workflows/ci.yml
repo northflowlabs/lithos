@@ -41,7 +41,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Assert no LiCSBAS / licsar_proc imports are vendored
         run: |
-          if grep -rEn "import +(licsbas|licsar_proc)|from +(licsbas|licsar_proc)" packages/; then
+          # The tests name the forbidden imports to assert they are absent, so they are skipped.
+          if grep -rEn --exclude-dir=tests --exclude-dir=node_modules "import +(licsbas|licsar_proc)|from +(licsbas|licsar_proc)" packages/; then
             echo "Licensing firewall violation: GPL LiCSBAS/licsar_proc code must not be imported."
             exit 1
           fi

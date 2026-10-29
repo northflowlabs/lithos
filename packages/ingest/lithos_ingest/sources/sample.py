@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
 
 from lithos_core.schema import (
     CoverageCell,
@@ -30,7 +29,7 @@ class SampleSource:
 
     key = "sample"
 
-    def __init__(self, samples_dir: Optional[Path] = None) -> None:
+    def __init__(self, samples_dir: Path | None = None) -> None:
         self._dir = samples_dir or _default_samples_dir()
         self._points: dict[str, MeasurementPoint] = {}
         self._series: dict[str, TimeSeries] = {}
@@ -117,8 +116,8 @@ class SampleSource:
     def query_points(
         self,
         bbox: BBox,
-        time_window: Optional[TimeWindow] = None,
-        filters: Optional[PointFilters] = None,
+        time_window: TimeWindow | None = None,
+        filters: PointFilters | None = None,
     ) -> list[MeasurementPoint]:
         self._ensure_loaded()
         out: list[MeasurementPoint] = []
@@ -136,11 +135,11 @@ class SampleSource:
             out = out[: filters.max_points]
         return out
 
-    def get_time_series(self, point_id: str) -> Optional[TimeSeries]:
+    def get_time_series(self, point_id: str) -> TimeSeries | None:
         self._ensure_loaded()
         return self._series.get(point_id)
 
-    def get_point(self, point_id: str) -> Optional[MeasurementPoint]:
+    def get_point(self, point_id: str) -> MeasurementPoint | None:
         self._ensure_loaded()
         return self._points.get(point_id)
 

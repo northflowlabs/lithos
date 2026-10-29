@@ -26,6 +26,7 @@ Research = "https://research.northflow.no/systems/lithos"
 
 [project.optional-dependencies]
 dev = [
+  "matplotlib>=3.8",
   "pytest>=7.4",
   "pytest-cov>=4.1",
   "respx>=0.21",

@@ -68,7 +68,7 @@ def robust_trend(t_days: np.ndarray, y_mm: np.ndarray) -> TrendResult:
     """Theil-Sen robust linear trend. Resistant to outliers, standard for PS-InSAR."""
     t_years = _years_from_start(t_days)
     res = stats.theilslopes(y_mm, t_years, alpha=0.95)
-    slope, intercept, lo, hi = float(res[0]), float(res[1]), float(res[2]), float(res[3])
+    slope, intercept, lo, hi = (float(v) for v in np.asarray(res, dtype=float)[:4])
     residuals = y_mm - (slope * t_years + intercept)
     return TrendResult(
         slope_mm_yr=slope,
@@ -121,7 +121,7 @@ def _segment_slope(t_years: np.ndarray, y_mm: np.ndarray) -> float:
     if len(t_years) < 2:
         return 0.0
     res = stats.theilslopes(y_mm, t_years)
-    return float(res[0])
+    return float(np.asarray(res, dtype=float)[0])
 
 
 def detect_change_points(

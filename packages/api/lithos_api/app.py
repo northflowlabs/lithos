@@ -7,7 +7,6 @@ import os
 import threading
 import time
 from contextlib import asynccontextmanager
-from typing import Optional
 
 from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,7 +40,7 @@ async def _lifespan(app: FastAPI):
         try:
             n = get_catalog().warm_hero()
             log.info("hero warm-up complete: %d points cached", n)
-        except Exception as exc:  # never block or crash startup on warm-up
+        except Exception as exc:  # noqa: BLE001  never block or crash startup on warm-up
             log.warning("hero warm-up failed: %s", exc)
 
     threading.Thread(target=_warm, name="lithos-warm", daemon=True).start()
@@ -132,10 +131,10 @@ def create_app() -> FastAPI:
     @app.get(f"{prefix}/points")
     def points(
         bbox: str = Query(..., description="minlon,minlat,maxlon,maxlat"),
-        start: Optional[str] = None,
-        end: Optional[str] = None,
-        min_coherence: Optional[float] = None,
-        min_velocity: Optional[float] = Query(None, description="min |velocity| mm/yr"),
+        start: str | None = None,
+        end: str | None = None,
+        min_coherence: float | None = None,
+        min_velocity: float | None = Query(None, description="min |velocity| mm/yr"),
         limit: int = Query(5000, le=20000),
         with_anomaly: bool = False,
     ) -> dict:
@@ -199,7 +198,7 @@ def create_app() -> FastAPI:
 
     # --- AOI scan ----------------------------------------------------------------
     @app.post(f"{prefix}/aoi/scan")
-    def aoi_scan(geometry: dict = Body(..., embed=True)) -> dict:
+    def aoi_scan(geometry: dict = Body(..., embed=True)) -> dict:  # noqa: B008  FastAPI's way to declare a body field
         """Scan a drawn polygon: aggregate stats, ranked points, emerging clusters."""
         if geometry.get("type") != "Polygon":
             raise HTTPException(400, "geometry must be a GeoJSON Polygon")

@@ -16,10 +16,8 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
 
 import httpx
-
 from lithos_core.schema import (
     CoverageCell,
     MeasurementPoint,
@@ -43,23 +41,23 @@ class EgmsSource:
 
     def __init__(
         self,
-        api_base: Optional[str] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
+        api_base: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
         timeout: float = 30.0,
     ) -> None:
         self.api_base = (api_base or os.getenv("EGMS_API_BASE", "https://egms.land.copernicus.eu/api")).rstrip("/")
         self.username = username or os.getenv("EGMS_USERNAME")
         self.password = password or os.getenv("EGMS_PASSWORD")
         self.timeout = timeout
-        self._token: Optional[str] = None
+        self._token: str | None = None
 
     @property
     def configured(self) -> bool:
         return bool(self.username and self.password)
 
     # --- auth --------------------------------------------------------------------
-    def _authenticate(self) -> Optional[str]:
+    def _authenticate(self) -> str | None:
         if self._token:
             return self._token
         if not self.configured:
@@ -118,8 +116,8 @@ class EgmsSource:
     def query_points(
         self,
         bbox: BBox,
-        time_window: Optional[TimeWindow] = None,
-        filters: Optional[PointFilters] = None,
+        time_window: TimeWindow | None = None,
+        filters: PointFilters | None = None,
     ) -> list[MeasurementPoint]:
         if not _EGMS_FOOTPRINT.contains(bbox.min_lon, bbox.min_lat):
             return []
@@ -143,7 +141,7 @@ class EgmsSource:
             log.warning("EGMS query failed (%s); degrading gracefully.", exc)
             return []
 
-    def get_time_series(self, point_id: str) -> Optional[TimeSeries]:  # pragma: no cover
+    def get_time_series(self, point_id: str) -> TimeSeries | None:  # pragma: no cover
         token = self._authenticate()
         if not token:
             return None

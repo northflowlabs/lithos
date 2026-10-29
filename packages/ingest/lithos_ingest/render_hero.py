@@ -1,8 +1,8 @@
 """Render a static hero PNG from the cached hero scene for the README and docs.
 
-This is the launch-day screenshot stand-in: the velocity field of the Bologna
-subsidence bowl. Run: python -m lithos_ingest.render_hero
-Requires matplotlib (a docs/dev dependency, not a runtime one).
+The picture shows the velocity field of the synthetic demonstration scene set over
+Bologna. Run: python -m lithos_ingest.render_hero
+Requires matplotlib, which is in the dev extras and not a runtime dependency.
 """
 
 from __future__ import annotations

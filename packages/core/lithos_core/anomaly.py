@@ -40,7 +40,7 @@ def _epoch_days(ts_dates: list[date]) -> np.ndarray:
 
 
 def _onset_date(start: date, t_years: float) -> date:
-    return start + timedelta(days=int(round(t_years * stats.DAYS_PER_YEAR)))
+    return start + timedelta(days=round(t_years * stats.DAYS_PER_YEAR))
 
 
 def _quality_factor(point: MeasurementPoint) -> float:

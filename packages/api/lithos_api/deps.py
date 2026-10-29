@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import functools
 from datetime import date
-from typing import Optional
 
 from fastapi import HTTPException
-
 from lithos_ingest.base import BBox, PointFilters, TimeWindow
 from lithos_ingest.catalog import LithosCatalog
 
@@ -39,7 +37,7 @@ def parse_bbox(bbox: str) -> BBox:
     return b
 
 
-def parse_time_window(start: Optional[str], end: Optional[str]) -> Optional[TimeWindow]:
+def parse_time_window(start: str | None, end: str | None) -> TimeWindow | None:
     if not start and not end:
         return None
     s = date.fromisoformat(start) if start else None
@@ -48,9 +46,9 @@ def parse_time_window(start: Optional[str], end: Optional[str]) -> Optional[Time
 
 
 def build_filters(
-    min_coherence: Optional[float],
-    min_velocity: Optional[float],
-    limit: Optional[int],
+    min_coherence: float | None,
+    min_velocity: float | None,
+    limit: int | None,
 ) -> PointFilters:
     return PointFilters(
         min_coherence=min_coherence,

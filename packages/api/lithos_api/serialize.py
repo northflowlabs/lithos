@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import csv
 import io
-from typing import Optional
 
 from lithos_core.schema import CoverageCell, MeasurementPoint, PointVerdict, TimeSeries
 
 
-def point_feature(p: MeasurementPoint, verdict: Optional[PointVerdict] = None) -> dict:
+def point_feature(p: MeasurementPoint, verdict: PointVerdict | None = None) -> dict:
     props: dict = {
         "id": p.id,
         "vertical_velocity": p.vertical_velocity,
@@ -42,7 +41,7 @@ def point_feature(p: MeasurementPoint, verdict: Optional[PointVerdict] = None) -
 
 def points_feature_collection(
     points: list[MeasurementPoint],
-    verdicts: Optional[dict[str, PointVerdict]] = None,
+    verdicts: dict[str, PointVerdict] | None = None,
 ) -> dict:
     verdicts = verdicts or {}
     return {

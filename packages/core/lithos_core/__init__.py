@@ -12,9 +12,9 @@ from lithos_core.schema import (
     MeasurementPoint,
     PointVerdict,
     SourceMeta,
+    Tile,
     TimeSeries,
     TimeSeriesSample,
-    Tile,
 )
 
 __version__ = "0.1.0"
@@ -27,8 +27,8 @@ __all__ = [
     "MeasurementPoint",
     "PointVerdict",
     "SourceMeta",
+    "Tile",
     "TimeSeries",
     "TimeSeriesSample",
-    "Tile",
     "__version__",
 ]

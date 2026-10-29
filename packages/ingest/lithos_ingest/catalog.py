@@ -9,10 +9,15 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
 
 from lithos_core.anomaly import AreaScanResult, analyse_point, scan_area
-from lithos_core.schema import CoverageCell, MeasurementPoint, PointVerdict, SourceMeta, TimeSeries
+from lithos_core.schema import (
+    CoverageCell,
+    MeasurementPoint,
+    PointVerdict,
+    SourceMeta,
+    TimeSeries,
+)
 
 from lithos_ingest.base import BBox, GroundMotionSource, PointFilters, TimeWindow
 from lithos_ingest.registry import get_source
@@ -25,7 +30,7 @@ _GLOBAL_GRID_DEG = 10.0
 
 
 class LithosCatalog:
-    def __init__(self, sources: Optional[list[GroundMotionSource]] = None) -> None:
+    def __init__(self, sources: list[GroundMotionSource] | None = None) -> None:
         if sources is None:
             keys = os.getenv("LITHOS_SOURCES", "sample,egms,licsar").split(",")
             sources = [get_source(k.strip()) for k in keys if k.strip()]
@@ -40,31 +45,31 @@ class LithosCatalog:
     def query_points(
         self,
         bbox: BBox,
-        time_window: Optional[TimeWindow] = None,
-        filters: Optional[PointFilters] = None,
+        time_window: TimeWindow | None = None,
+        filters: PointFilters | None = None,
     ) -> list[MeasurementPoint]:
         points: list[MeasurementPoint] = []
         for src in self.sources:
             try:
                 points.extend(src.query_points(bbox, time_window, filters))
-            except Exception as exc:  # resilience: one bad source must not crash the query
+            except Exception as exc:  # noqa: BLE001  one bad source must not crash the query
                 log.warning("source %s failed on query_points: %s", getattr(src, "key", "?"), exc)
         if filters and filters.max_points:
             points.sort(key=lambda p: abs(p.best_velocity or 0), reverse=True)
             points = points[: filters.max_points]
         return points
 
-    def get_time_series(self, point_id: str) -> Optional[TimeSeries]:
+    def get_time_series(self, point_id: str) -> TimeSeries | None:
         for src in self.sources:
             try:
                 ts = src.get_time_series(point_id)
                 if ts is not None:
                     return ts
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001  one bad source must not crash the query
                 log.warning("source %s failed on get_time_series: %s", getattr(src, "key", "?"), exc)
         return None
 
-    def get_point(self, point_id: str) -> Optional[MeasurementPoint]:
+    def get_point(self, point_id: str) -> MeasurementPoint | None:
         """Look up a full measurement point by id across sources that support it."""
         for src in self.sources:
             getter = getattr(src, "get_point", None)
@@ -74,7 +79,7 @@ class LithosCatalog:
                 p = getter(point_id)
                 if p is not None:
                     return p
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001  one bad source must not crash the query
                 log.warning("source %s failed on get_point: %s", getattr(src, "key", "?"), exc)
         return None
 
@@ -99,7 +104,7 @@ class LithosCatalog:
                 for p in lister(bbox):
                     self.verdict_for(p)
                     warmed += 1
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001  warm-up must never crash the catalogue
                 log.warning("hero warm-up skipped: %s", exc)
         return warmed
 
@@ -115,8 +120,8 @@ class LithosCatalog:
     def anomalies_in_bbox(
         self,
         bbox: BBox,
-        time_window: Optional[TimeWindow] = None,
-        filters: Optional[PointFilters] = None,
+        time_window: TimeWindow | None = None,
+        filters: PointFilters | None = None,
     ) -> list[PointVerdict]:
         points = self.query_points(bbox, time_window, filters)
         verdicts = [self.verdict_for(p) for p in points]
@@ -137,7 +142,7 @@ class LithosCatalog:
         for src in self.sources:
             try:
                 cells.extend(src.list_coverage())
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001  one bad source must not crash the query
                 log.warning("source %s failed on list_coverage: %s", getattr(src, "key", "?"), exc)
         return cells
 

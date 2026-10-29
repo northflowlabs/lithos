@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import strawberry
 
 from lithos_api.deps import build_filters, get_catalog, parse_bbox
@@ -14,12 +12,12 @@ class Point:
     id: str
     lon: float
     lat: float
-    best_velocity: Optional[float]
-    coherence: Optional[float]
+    best_velocity: float | None
+    coherence: float | None
     source: str
-    anomaly_type: Optional[str]
-    headline: Optional[str]
-    newsworthiness: Optional[float]
+    anomaly_type: str | None
+    headline: str | None
+    newsworthiness: float | None
 
 
 @strawberry.type
@@ -28,7 +26,7 @@ class CoverageCellType:
     available: bool
     sources: list[str]
     density_class: str
-    note: Optional[str]
+    note: str | None
 
 
 @strawberry.type

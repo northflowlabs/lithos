@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from lithos_ingest.base import GroundMotionSource
 from lithos_ingest.sources.egms import EgmsSource

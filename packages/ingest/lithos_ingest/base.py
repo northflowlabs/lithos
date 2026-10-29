@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from lithos_core.schema import (
     CoverageCell,
@@ -34,7 +34,7 @@ class BBox:
         return (self.min_lon, self.min_lat, self.max_lon, self.max_lat)
 
     @classmethod
-    def from_tuple(cls, t: tuple[float, float, float, float]) -> "BBox":
+    def from_tuple(cls, t: tuple[float, float, float, float]) -> BBox:
         return cls(*t)
 
 
@@ -42,24 +42,22 @@ class BBox:
 class TimeWindow:
     """Inclusive date range. Either bound may be None for open-ended."""
 
-    start: Optional[date] = None
-    end: Optional[date] = None
+    start: date | None = None
+    end: date | None = None
 
     def contains(self, d: date) -> bool:
         if self.start and d < self.start:
             return False
-        if self.end and d > self.end:
-            return False
-        return True
+        return not (self.end and d > self.end)
 
 
 @dataclass(frozen=True)
 class PointFilters:
     """Optional query filters applied during point retrieval."""
 
-    min_coherence: Optional[float] = None
-    min_abs_velocity: Optional[float] = None
-    max_points: Optional[int] = None
+    min_coherence: float | None = None
+    min_abs_velocity: float | None = None
+    max_points: int | None = None
 
 
 @runtime_checkable
@@ -77,12 +75,12 @@ class GroundMotionSource(Protocol):
     def query_points(
         self,
         bbox: BBox,
-        time_window: Optional[TimeWindow] = None,
-        filters: Optional[PointFilters] = None,
+        time_window: TimeWindow | None = None,
+        filters: PointFilters | None = None,
     ) -> list[MeasurementPoint]:
         """Measurement points within the bbox (and optional window/filters)."""
         ...
 
-    def get_time_series(self, point_id: str) -> Optional[TimeSeries]:
+    def get_time_series(self, point_id: str) -> TimeSeries | None:
         """Full displacement history for a single point."""
         ...

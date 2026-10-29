@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
-
 from lithos_api.app import create_app
 
 client = TestClient(create_app())
@@ -123,7 +122,7 @@ def test_aoi_scan_polygon():
 
 
 def test_graphql_anomalies_query():
-    q = '{ anomalies(bbox: "%s", limit: 20) { id headline anomalyType } }' % BBOX
+    q = f'{{ anomalies(bbox: "{BBOX}", limit: 20) {{ id headline anomalyType }} }}'
     r = client.post("/v1/graphql", json={"query": q})
     assert r.status_code == 200
     data = r.json()["data"]["anomalies"]

@@ -55,7 +55,8 @@ def test_licsar_honest_outside_belts():
 def test_licsar_never_imports_gpl():
     # The firewall: this module must not pull in any LiCSBAS / licsar_proc package.
     import lithos_ingest.sources.licsar as mod
-    src = open(mod.__file__, encoding="utf-8").read()
+    with open(mod.__file__, encoding="utf-8") as fh:
+        src = fh.read()
     assert "import licsbas" not in src.lower()
     assert "import licsar_proc" not in src.lower()
     assert "from licsbas" not in src.lower()

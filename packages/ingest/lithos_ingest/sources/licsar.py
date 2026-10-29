@@ -20,10 +20,8 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import Optional
 
 import httpx
-
 from lithos_core.schema import (
     CoverageCell,
     MeasurementPoint,
@@ -58,8 +56,8 @@ class LicsarSource:
 
     def __init__(
         self,
-        portal_base: Optional[str] = None,
-        rate_limit_rps: Optional[float] = None,
+        portal_base: str | None = None,
+        rate_limit_rps: float | None = None,
         timeout: float = 60.0,
     ) -> None:
         self.portal_base = (
@@ -126,8 +124,8 @@ class LicsarSource:
     def query_points(
         self,
         bbox: BBox,
-        time_window: Optional[TimeWindow] = None,
-        filters: Optional[PointFilters] = None,
+        time_window: TimeWindow | None = None,
+        filters: PointFilters | None = None,
     ) -> list[MeasurementPoint]:
         """Fetch portal-served velocity points for frames intersecting the bbox.
 
@@ -150,7 +148,7 @@ class LicsarSource:
             log.warning("LiCSAR query failed (%s); degrading gracefully.", exc)
             return []
 
-    def get_time_series(self, point_id: str) -> Optional[TimeSeries]:  # pragma: no cover
+    def get_time_series(self, point_id: str) -> TimeSeries | None:  # pragma: no cover
         return None
 
     @staticmethod

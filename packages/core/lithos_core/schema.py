@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from datetime import date
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -46,7 +45,7 @@ class TimeSeriesSample(BaseModel):
 
     date: date
     displacement_mm: float
-    uncertainty_mm: Optional[float] = None
+    uncertainty_mm: float | None = None
 
 
 class TimeSeries(BaseModel):
@@ -75,25 +74,25 @@ class MeasurementPoint(BaseModel):
     id: str
     lon: float = Field(ge=-180, le=180)
     lat: float = Field(ge=-90, le=90)
-    height_m: Optional[float] = None
+    height_m: float | None = None
 
-    los_velocity: Optional[float] = None  # mm/yr along line of sight
-    vertical_velocity: Optional[float] = None  # mm/yr, negative = subsidence
-    horizontal_velocity: Optional[float] = None  # mm/yr east-west where available
-    velocity_uncertainty: Optional[float] = None  # mm/yr (1 sigma)
+    los_velocity: float | None = None  # mm/yr along line of sight
+    vertical_velocity: float | None = None  # mm/yr, negative = subsidence
+    horizontal_velocity: float | None = None  # mm/yr east-west where available
+    velocity_uncertainty: float | None = None  # mm/yr (1 sigma)
 
-    coherence: Optional[float] = Field(default=None, ge=0, le=1)
-    quality: Optional[float] = Field(default=None, ge=0, le=1)
+    coherence: float | None = Field(default=None, ge=0, le=1)
+    quality: float | None = Field(default=None, ge=0, le=1)
 
     source: str = "unknown"
     product: str = "unknown"
-    processing_window: Optional[str] = None  # e.g. "2019-2023"
-    ref_point_id: Optional[str] = None
+    processing_window: str | None = None  # e.g. "2019-2023"
+    ref_point_id: str | None = None
 
-    time_series: Optional[TimeSeries] = None
+    time_series: TimeSeries | None = None
 
     @property
-    def best_velocity(self) -> Optional[float]:
+    def best_velocity(self) -> float | None:
         """Vertical if present (most interpretable), else LOS."""
         return self.vertical_velocity if self.vertical_velocity is not None else self.los_velocity
 
@@ -107,7 +106,7 @@ class Tile(BaseModel):
     bbox: tuple[float, float, float, float]  # minlon, minlat, maxlon, maxlat
     temporal_window: str
     point_count: int = 0
-    last_updated: Optional[date] = None
+    last_updated: date | None = None
     availability_status: AvailabilityStatus = AvailabilityStatus.AVAILABLE
 
 
@@ -121,9 +120,9 @@ class CoverageCell(BaseModel):
     bbox: tuple[float, float, float, float]
     available: bool
     sources: list[str] = Field(default_factory=list)
-    newest_window: Optional[str] = None
+    newest_window: str | None = None
     density_class: str = "none"  # none | sparse | moderate | dense
-    note: Optional[str] = None
+    note: str | None = None
 
 
 class SourceMeta(BaseModel):
@@ -135,15 +134,15 @@ class SourceMeta(BaseModel):
     attribution: str
     citation: str
     coverage_description: str
-    url: Optional[str] = None
+    url: str | None = None
 
 
 class AnomalyFlag(BaseModel):
     """One machine-readable anomaly record. Paired with a human sentence in the verdict."""
 
     type: AnomalyType
-    magnitude_mm_yr: Optional[float] = None
-    onset_date: Optional[date] = None
+    magnitude_mm_yr: float | None = None
+    onset_date: date | None = None
     confidence: float = Field(ge=0, le=1)
     evidence: dict = Field(default_factory=dict)
 
@@ -158,14 +157,14 @@ class PointVerdict(BaseModel):
     """The full result of analysing one point: flags plus a quotable sentence."""
 
     point_id: str
-    velocity_mm_yr: Optional[float] = None
-    velocity_uncertainty_mm_yr: Optional[float] = None
+    velocity_mm_yr: float | None = None
+    velocity_uncertainty_mm_yr: float | None = None
     flags: list[AnomalyFlag] = Field(default_factory=list)
     headline: str = ""
     newsworthiness: float = 0.0  # magnitude x acceleration x coherence, for ranking
 
     @property
-    def primary_flag(self) -> Optional[AnomalyFlag]:
+    def primary_flag(self) -> AnomalyFlag | None:
         notable = [f for f in self.flags if f.is_notable]
         if not notable:
             return self.flags[0] if self.flags else None
