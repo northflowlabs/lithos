@@ -18,6 +18,12 @@ dependencies = [
   "pydantic>=2.5",
 ]
 
+[project.urls]
+Homepage = "https://lithos.northflow.no"
+Repository = "https://github.com/northflowlabs/lithos"
+Issues = "https://github.com/northflowlabs/lithos/issues"
+Research = "https://research.northflow.no/systems/lithos"
+
 [project.optional-dependencies]
 dev = [
   "pytest>=7.4",
