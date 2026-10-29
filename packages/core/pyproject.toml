@@ -11,7 +11,7 @@ description = "LITHOS canonical ground-motion schema and anomaly engine (Apache-
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
-authors = [{ name = "Northflow Technologies", email = "hello@lithos.earth" }]
+authors = [{ name = "Northflow Technologies AS", email = "hello@northflow.no" }]
 dependencies = [
   "numpy>=1.24",
   "scipy>=1.10",
