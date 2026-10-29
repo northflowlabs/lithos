@@ -45,6 +45,5 @@ replace it with live data.
 
 ## Coverage expands over time
 
-Each expansion is announced. The `freshness` job watches the upstream endpoints; new
-coverage is the launch-cadence narrative. If your region is not covered today, the
+The `freshness` job watches the upstream endpoints. If your region is not covered today, the
 coverage map will say so, and tell you why.

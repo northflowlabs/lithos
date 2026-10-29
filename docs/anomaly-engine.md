@@ -9,18 +9,18 @@ openly-published time-series and spatial statistics. No maritime methodology, no
 
 For each measurement point with enough history (at least 12 epochs):
 
-1. **Robust trend** — Theil-Sen slope with a 95% confidence interval, outlier-resistant.
+1. **Robust trend**: Theil-Sen slope with a 95% confidence interval, outlier-resistant.
    Gives velocity (mm/yr) and an uncertainty.
-2. **Seasonal vs. secular separation** — harmonic regression fits
+2. **Seasonal vs. secular separation**: harmonic regression fits
    `y = a + b·t + c·sin(2πt) + d·cos(2πt)` (t in years), separating an annual seasonal
    cycle from the long-term trend. A reversible seasonal swing is never read as motion.
-3. **Change-point detection** — binary segmentation on the *de-seasonalised* series, with
+3. **Change-point detection**: binary segmentation on the *de-seasonalised* series, with
    a proper nested-model F-test gate (conservative, so we miss marginal splits rather than
    invent them). Finds regime shifts and the onset of acceleration, with a date.
-4. **Classification** — comparing the slope before and after the strongest change-point
+4. **Classification**: comparing the slope before and after the strongest change-point
    yields: accelerating subsidence, accelerating uplift, new-onset subsidence/uplift,
    stabilising, steady motion, or stable.
-5. **Confidence gating** — coherence/quality scales the confidence down so low-quality
+5. **Confidence gating**: coherence/quality scales the confidence down so low-quality
    points are not over-flagged.
 
 ### Output contract

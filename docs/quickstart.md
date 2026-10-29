@@ -5,7 +5,7 @@ Three ways in: the web app, the notebook, and the Python library.
 ## 1. Self-host the full stack (Docker)
 
 ```bash
-git clone https://github.com/northflow/lithos.git
+git clone https://github.com/northflowlabs/lithos.git
 cd lithos
 cp .env.example .env        # optional: add free Copernicus credentials for live EGMS
 docker compose -f infra/docker-compose.yml up --build
@@ -45,8 +45,9 @@ area = scan_area(points)
 print(area.anomalous_count, "anomalous points;", len(area.cluster_flags), "clusters")
 ```
 
-Distributions publish under the `pylithos` namespace on PyPI (`pylithos-core`,
-`pylithos-ingest`, `pylithos-api`); import modules stay `lithos_core` etc.
+The distributions are named `pylithos-core`, `pylithos-ingest` and `pylithos-api` (the bare
+`lithos` name is taken on PyPI). They are not on PyPI yet, so install from this repository as
+shown above. Import modules stay `lithos_core` etc.
 
 ## Running the API alone
 

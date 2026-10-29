@@ -34,9 +34,9 @@ read the engine. No cleverness where stability matters.
 
 Defined in `lithos_core.schema`:
 
-- **`MeasurementPoint`** — id, lon, lat, height, los/vertical/horizontal velocity,
+- **`MeasurementPoint`**: id, lon, lat, height, los/vertical/horizontal velocity,
   uncertainty, coherence/quality, time series, source, product, processing window, ref point.
-- **`Tile` / `CoverageCell`** — bbox, source, window, availability/density.
+- **`Tile` / `CoverageCell`**: bbox, source, window, availability/density.
 - **`TimeSeries`**, **`AnomalyFlag`**, **`PointVerdict`**.
 
 Every source implements one interface:

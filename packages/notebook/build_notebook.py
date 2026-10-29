@@ -25,7 +25,7 @@ def cell(kind: str, source: str) -> dict:
 CELLS = [
     cell(
         MD,
-        """# LITHOS quickstart — see the ground move, in a notebook
+        """# LITHOS quickstart: see the ground move, in a notebook
 
 This notebook mirrors the LITHOS web flow with zero local install: pick a location, pull
 normalised ground-motion points, run the anomaly engine, and plot velocity, a time series,
@@ -99,7 +99,7 @@ vels = [p.best_velocity or 0.0 for p in points]
 fig, ax = plt.subplots(figsize=(7, 5))
 sc = ax.scatter(lons, lats, c=vels, cmap="RdBu", vmin=-20, vmax=20, s=12)
 plt.colorbar(sc, label="Vertical velocity (mm/yr)")
-ax.set_title("LITHOS — Bologna ground motion")
+ax.set_title("LITHOS: Bologna ground motion")
 ax.set_xlabel("Longitude"); ax.set_ylabel("Latitude")
 plt.show()
 """,
@@ -171,9 +171,9 @@ for c in result.cluster_flags:
 Swap the bbox and re-run. With Copernicus credentials and the EGMS adapter you can pull any of
 these live. Without credentials, only the cached Bologna scene returns points.
 
-- **Bologna, Italy** — `BBox(11.27, 44.43, 11.47, 44.57)` (subsidence bowl, the hero scene).
-- **Mexico City** — `BBox(-99.30, 19.20, -98.95, 19.60)` (extreme groundwater subsidence; needs a global source).
-- **Groningen, Netherlands** — `BBox(6.50, 53.15, 6.95, 53.45)` (gas-extraction subsidence; EGMS).
+- **Bologna, Italy**: `BBox(11.27, 44.43, 11.47, 44.57)` (subsidence bowl, the hero scene).
+- **Mexico City**: `BBox(-99.30, 19.20, -98.95, 19.60)` (extreme groundwater subsidence; needs a global source).
+- **Groningen, Netherlands**: `BBox(6.50, 53.15, 6.95, 53.45)` (gas-extraction subsidence; EGMS).
 
 LITHOS reports observed motion and flags anomalies. Interpretation and engineering judgement
 stay with qualified people. Please cite LITHOS and the underlying Copernicus / COMET data in any

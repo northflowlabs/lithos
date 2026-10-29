@@ -51,7 +51,7 @@ is general-purpose ground-motion statistics, nothing more.
 
 ## Python and npm naming
 
-- The Python distributions publish under the **`pylithos`** namespace
+- The Python distributions are named in the **`pylithos`** namespace
   (`pylithos-core`, `pylithos-ingest`, `pylithos-api`) because the bare `lithos` name is
-  already taken on PyPI. Import modules stay `lithos_core` / `lithos_ingest` / `lithos_api`.
+  already taken on PyPI. They are not published on PyPI yet. Import modules stay `lithos_core` / `lithos_ingest` / `lithos_api`.
 - The web app publishes (if ever) under the npm scope **`@northflow/lithos-web`**.

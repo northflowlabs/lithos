@@ -32,7 +32,7 @@ Northflow Technologies AS (2026). LITHOS: open ground motion intelligence.
 https://github.com/northflowlabs/lithos
 ```
 
-The web UI exposes a one-click "Cite LITHOS" affordance in every point and area panel,
+The web UI has a one-click "Cite LITHOS" button in the point panel,
 and a "copy permalink" so a specific view can be referenced directly in an article.
 
 **Used LITHOS in a story or a study?** Tell us: open an issue with the `showcase` label or

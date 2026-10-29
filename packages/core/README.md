@@ -17,4 +17,4 @@ print(verdict.headline)   # "This point has been sinking about 14 mm/year and ac
 ```
 
 See [`docs/anomaly-engine.md`](../../docs/anomaly-engine.md) for the method and the
-labelled-event validation suite.
+regression suite of labelled synthetic events.

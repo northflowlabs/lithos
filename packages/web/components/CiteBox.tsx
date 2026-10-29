@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const CITATION = `Northflow Technologies (2026). LITHOS: open access ground-motion intelligence. https://github.com/northflow/lithos`;
+const CITATION = `Northflow Technologies AS (2026). LITHOS: open ground motion intelligence. https://github.com/northflowlabs/lithos`;
 
 // The "cite this" affordance. Success for LITHOS is citations, not stars, so make
 // attribution one click away everywhere it matters.

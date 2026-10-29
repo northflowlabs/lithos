@@ -37,7 +37,7 @@ def render(out_path: Path | None = None) -> Path:
     plt.setp(plt.getp(cb.ax.axes, "yticklabels"), color="#aab3bd")
 
     ax.set_title(
-        "LITHOS — Bologna ground motion, 2019 to 2023",
+        "LITHOS: Bologna ground motion, 2019 to 2023",
         color="#f6f4ef",
         fontsize=13,
         loc="left",

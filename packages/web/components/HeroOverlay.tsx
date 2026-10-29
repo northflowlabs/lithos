@@ -22,7 +22,7 @@ export function HeroOverlay({ name, note, isSynthetic, onDismiss }: Props) {
         </p>
         <p className="mt-2 text-[11px] text-ink-400">
           Showing: {name}
-          {isSynthetic ? " · cached demonstration scene" : ""}
+          {isSynthetic ? " · synthetic demonstration scene" : ""}
         </p>
         <button
           onClick={onDismiss}

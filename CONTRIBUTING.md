@@ -35,9 +35,9 @@ Implement the `GroundMotionSource` protocol in `packages/ingest/lithos_ingest/so
 ## Pull requests
 
 - One logical change per PR. Include tests. CI must be green (lint, typecheck, test, build).
-- The anomaly engine has a labelled-event regression suite; if you touch detection, add a fixture proving it catches the real thing without crying wolf.
+- The anomaly engine has a regression suite of labelled synthetic events; if you touch detection, add a fixture proving it catches the real thing without crying wolf.
 - Be calm and precise in any user-facing language: observed motion plus uncertainty, never alarmism.
 
 ## Good first issues
 
-Look for the [`good first issue`](https://github.com/northflow/lithos/labels/good%20first%20issue) label: coverage adapters, colourmap accessibility, docs, and notebook examples are great entry points.
+Look for the [`good first issue`](https://github.com/northflowlabs/lithos/labels/good%20first%20issue) label: coverage adapters, colourmap accessibility, docs, and notebook examples are great entry points.

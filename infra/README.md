@@ -16,7 +16,7 @@ The API serves the cached hero scene with no credentials. Add `EGMS_USERNAME` /
 Following Northflow's existing pattern:
 
 - **Web on Vercel.** The Next.js app is static-first and edge-friendly; Vercel gives
-  zero-config previews and a global CDN for the launch-day traffic spike. Set
+  zero-config previews and a global CDN. Set
   `NEXT_PUBLIC_LITHOS_API` to the public API URL.
 - **API + ingest on Hetzner.** `infra/Dockerfile.api` runs anywhere Docker runs. Put it
   behind a reverse proxy (Caddy/Traefik) with TLS. The ingest jobs and the spatial store
@@ -39,8 +39,7 @@ change, not a rewrite. Justification and migration notes belong in
 - The API emits structured JSON logs and an `X-Response-Time-ms` header per request.
 - `infra/freshness_monitor.py` is a scheduled job (cron or the `freshness` CI workflow)
   that checks EGMS/LiCSAR reachability and reports per-source status as JSON. It exits
-  non-zero when a source is down so alerting can hook in. New-coverage events feed the
-  public launch-cadence narrative.
+  non-zero when a source is down so alerting can hook in.
 
 ## Resilience
 
