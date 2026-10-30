@@ -41,9 +41,25 @@ export default function PointPanel({ pointId, properties, permalink, caveat, onC
   const ts = useQuery({ queryKey: ["ts", pointId], queryFn: () => api.timeSeries(pointId) });
   const verdict = useQuery({ queryKey: ["verdict", pointId], queryFn: () => api.verdict(pointId) });
 
-  const v = properties?.best_velocity ?? verdict.data?.velocity_mm_yr ?? null;
+  // A permalink can open a point outside the view, so its fields are read from where it lies.
+  const lon = ts.data?.lon;
+  const lat = ts.data?.lat;
+  const located = useQuery({
+    queryKey: ["point", pointId],
+    enabled: !properties && lon != null && lat != null,
+    queryFn: async () => {
+      const box: [number, number, number, number] = [lon! - 0.001, lat! - 0.001, lon! + 0.001, lat! + 0.001];
+      const near = await api.points(box, 100, false);
+      return near.features.find((f) => f.properties.id === pointId)?.properties ?? null;
+    },
+  });
+  const point = properties ?? located.data ?? undefined;
+  const relative =
+    point?.relative_only || ts.data?.relative_only || verdict.data?.flags?.some((f) => f.type === "relative_only");
+
+  const v = point?.best_velocity ?? verdict.data?.velocity_mm_yr ?? null;
   const flag = verdict.data?.flags?.find((f) => f.type !== "stable") ?? verdict.data?.flags?.[0] ?? null;
-  const headline = verdict.data?.headline ?? properties?.headline ?? "";
+  const headline = verdict.data?.headline ?? point?.headline ?? "";
   const failed = ts.isError || verdict.isError;
   const missing = !failed && !ts.isLoading && !verdict.isLoading && v === null && !headline;
 
@@ -87,12 +103,12 @@ export default function PointPanel({ pointId, properties, permalink, caveat, onC
               {v === null ? "n/a" : `${v > 0 ? "+" : ""}${v.toFixed(1)}`}
             </span>
             <span className="text-sm text-ink-200">
-              mm/year, vertical{properties?.relative_only ? ", relative only" : ""}
+              mm/year, vertical{relative ? ", relative only" : ""}
             </span>
           </div>
-          {properties?.velocity_uncertainty != null && (
+          {point?.velocity_uncertainty != null && (
             <div className="text-xs text-ink-200">
-              ± {properties.velocity_uncertainty.toFixed(1)} mm/yr, 95% interval of the trend. It
+              ± {point.velocity_uncertainty.toFixed(1)} mm/yr, 95% interval of the trend. It
               leaves out remaining atmosphere and the GNSS tie.
             </div>
           )}
@@ -122,13 +138,13 @@ export default function PointPanel({ pointId, properties, permalink, caveat, onC
         {/* metadata */}
         <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
           <dt className="text-ink-400">Source</dt>
-          <dd className="text-ink-200">{properties?.source ?? "n/a"}</dd>
+          <dd className="text-ink-200">{point?.source ?? "n/a"}</dd>
           <dt className="text-ink-400">Product</dt>
-          <dd className="text-ink-200">{properties?.product ?? "n/a"}</dd>
+          <dd className="text-ink-200">{point?.product ?? "n/a"}</dd>
           <dt className="text-ink-400">Window</dt>
-          <dd className="text-ink-200">{properties?.processing_window ?? "n/a"}</dd>
+          <dd className="text-ink-200">{point?.processing_window ?? "n/a"}</dd>
           <dt className="text-ink-400">Coherence</dt>
-          <dd className="text-ink-200">{properties?.coherence?.toFixed(2) ?? "n/a"}</dd>
+          <dd className="text-ink-200">{point?.coherence?.toFixed(2) ?? "n/a"}</dd>
         </dl>
 
         {/* export */}
