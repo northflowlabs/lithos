@@ -1,0 +1,48 @@
+# Dependency updates once a month, grouped into one pull request per ecosystem.
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/packages/core"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 14
+    groups:
+      all:
+        patterns: ["*"]
+  - package-ecosystem: "pip"
+    directory: "/packages/ingest"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 14
+    groups:
+      all:
+        patterns: ["*"]
+  - package-ecosystem: "pip"
+    directory: "/packages/api"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 14
+    groups:
+      all:
+        patterns: ["*"]
+  - package-ecosystem: "npm"
+    directory: "/packages/web"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 14
+    groups:
+      all:
+        patterns: ["*"]
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 14
+    groups:
+      all:
+        patterns: ["*"]
