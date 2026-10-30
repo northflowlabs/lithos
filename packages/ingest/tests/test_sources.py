@@ -19,7 +19,14 @@ from lithos_ingest import gnss
 from lithos_ingest import licsar_archive as archive
 from lithos_ingest.base import BBox, PointFilters, data_dir
 from lithos_ingest.catalog import LithosCatalog
-from lithos_ingest.scene import SCENES, _at, _caveat, _peak, _rate_with_interval
+from lithos_ingest.scene import (
+    SCENES,
+    _at,
+    _caveat,
+    _peak,
+    _rate_with_interval,
+    _sign_wording,
+)
 from lithos_ingest.sources.egms import EgmsSource, parse_ortho_csv
 from lithos_ingest.sources.licsar import LicsarSource
 
@@ -100,7 +107,8 @@ def test_east_of_the_line_nothing_is_called_motion():
 
 def test_the_caveat_keeps_the_disagreement_visible():
     caveat = LicsarSource().hero["caveat"]
-    assert "opposite sign" in caveat and "MEDI" in caveat
+    assert "opposite sign but only narrowly" in caveat and "MEDI" in caveat
+    assert "+1.8 ± 1.6" in caveat and "on the same dates" in caveat
 
 
 def test_peak_and_caveat_read_their_inputs():
@@ -148,6 +156,14 @@ def test_the_caveat_only_says_opposite_sign_when_it_is():
         }
     ]
     assert "opposite sign" not in _caveat(SCENES["bologna"], checks, -3.0)
+
+
+def test_the_sign_is_claimed_only_as_far_as_the_interval_carries():
+    assert _sign_wording(-1.0, -3.0, 2.0, 1.6) == ""
+    assert "not settled" in _sign_wording(2.0, -3.0, 4.0, 1.6)  # the reading is +1.0
+    assert "only narrowly (+2.0 ± 1.6" in _sign_wording(2.0, -3.0, 5.0, 1.6)
+    plain = _sign_wording(2.0, -3.0, 9.0, 1.6)
+    assert "opposite sign" in plain and "narrowly" not in plain
 
 
 def test_a_short_check_has_a_wide_interval():

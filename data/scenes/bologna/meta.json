@@ -67,7 +67,7 @@
       "interval_95": 1.6
     }
   ],
-  "caveat": "Tied to GNSS only at BOLG. At BLGN the scene is consistent with GNSS within about \u00b14.6 mm per year (95%), over about 13 months, not a tight check. At MEDI the scene reads +2.2 mm per year where GNSS reads -2.9, the opposite sign, from cells 3.8 to 4.4 km away. East of 11.45E values are relative only.",
+  "caveat": "Tied to GNSS only at BOLG. At BLGN the scene is consistent with GNSS within about \u00b14.6 mm per year (95%), over about 13 months, not a tight check. At MEDI the scene reads +2.2 mm per year where GNSS reads -2.9 on the same dates, the opposite sign but only narrowly (+1.8 \u00b1 1.6 from GNSS plus the misfit), from cells 3.8 to 4.4 km away. East of 11.45E values are relative only.",
   "relative_east_of": 11.45,
   "peak": {
     "cell_mm_yr": -23.5,

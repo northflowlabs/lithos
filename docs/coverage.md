@@ -73,7 +73,10 @@ something about the datum as well as the ground.
   removal. The choice of pairs moves it too.
 - **East of 11.45E the values are relative only.** They are faded and carry no motion verdict. The
   line is a judgement from the scene's pattern and one GNSS site, as no station lies between BLGN
-  and MEDI. At MEDI the scene and GNSS disagree in sign, from cells 3.8 to 4.4 km from the station.
+  and MEDI. At MEDI the scene and GNSS differ by 4.7 ± 1.6 mm per year, from cells 3.8 to 4.4 km
+  from the station. That they also differ in sign holds only narrowly: GNSS plus that misfit puts
+  the scene at +1.8 ± 1.6. The -2.9 in the caveat is GNSS on the 60 SAR dates of the check;
+  `gnss.fit_rate` on the daily series over the window gives -2.52 ± 0.46 (1 sigma).
 - **Near the tie the check is weak.** At BLGN, 1.3 km from BOLG, the scene is consistent with GNSS
   within about ±4.6 mm per year (95%), over about 13 months. That is not a tight check.
 - A trend's "±" is the 95% interval of the fit. It reflects scatter about the trend, not remaining
@@ -84,10 +87,21 @@ something about the datum as well as the ground.
 
 ### What was tried for the east
 
-A plane through the GNSS stations was tried and not applied. Run `python -m lithos_ingest.scene
-wide` to repeat it: it widens the scene to Modena and prints the same-date checks against BOLG. The
-scene minus GNSS is -3.1 ± 3.2 mm per year at MOPS, 0.0 ± 3.3 at MODE, on the same site, and
-+5.8 ± 1.9 at MEDI (95%). Only MEDI differs clearly, so a plane would rest on one site.
+No correction for the east is applied, and the repository has no code that fits one. `python -m
+lithos_ingest.scene wide` widens the scene to Modena and prints the same-date checks against BOLG,
+and nothing more. The scene minus GNSS is -3.1 ± 3.2 mm per year at MOPS, 0.0 ± 3.3 at MODE and
++5.8 ± 1.9 at MEDI (95%).
+
+These figures are weaker than their intervals suggest. They move with the box the atmosphere is
+fitted over, by as much as the intervals: MOPS from -3.06 to +0.15, MEDI by about 1.1. That is why
+MEDI reads +5.8 ± 1.9 here and 4.69 ± 1.6 in `meta.json`. The cells, dates and GNSS are the same,
+but the wide run fits atmosphere and ramp over 10.90E to 11.70E and the published scene over
+11.18E to 11.68E.
+
+MOPS and MODE sit 60 m apart and read differently, and MODE's 0.0 is not an agreement. MODE has a
+396-day gap, 2022-09 to 2023-10, and resumes at the antenna and radome change the Nevada Geodetic
+Laboratory lists for 2023-10-25, so the step cannot be estimated. A trial step of -3 to -5 mm,
+which the command does not apply, moves MODE to -1.4 to -2.4.
 
 The cause of the east's rising values is not known. A test against 85 longer pairs (72 to 348
 days) for short-pair phase bias was inconclusive: those pairs cluster by season and their dates do

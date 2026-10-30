@@ -534,6 +534,21 @@ def _same_sign(a: float, b: float) -> bool:
     return (a < 0) == (b < 0)
 
 
+def _sign_wording(scene: float, station: float, difference: float, interval: float) -> str:
+    """What a check carries about sign. GNSS plus the misfit reads the scene with the misfit's
+    interval, so an opposite sign is claimed only while that reading clears zero, and is called
+    narrow while it clears zero by less than a second interval."""
+    if _same_sign(scene, station):
+        return ""
+    reading = station + difference
+    if abs(reading) <= interval or not _same_sign(reading, scene):
+        return ", the sign not settled"
+    narrowly = " but only narrowly" if abs(reading) < 2 * interval else ""
+    return (
+        f", the opposite sign{narrowly} ({reading:+.1f} ± {interval:.1f} from GNSS plus the misfit)"
+    )
+
+
 def _caveat(spec: SceneSpec, checks: list[dict], tie_rate: float) -> str:
     """The sentence that travels with the data, worded from the station checks. It says only
     what the numbers carry: a check whose interval spans zero is called consistent, not good."""
@@ -551,10 +566,11 @@ def _caveat(spec: SceneSpec, checks: list[dict], tie_rate: float) -> str:
                 f"±{c['interval_95']:.1f} mm per year (95%), over about {c['months']} months{weak}."
             )
         else:
-            sign = ", the opposite sign" if not _same_sign(scene, station) else ""
+            sign = _sign_wording(scene, station, c["difference"], c["interval_95"])
             parts.append(
                 f"At {c['station']} the scene reads {scene:+.1f} mm per year where GNSS reads "
-                f"{station:+.1f}{sign}, from cells {c['km'][0]} to {c['km'][1]} km away."
+                f"{station:+.1f} on the same dates{sign}, from cells {c['km'][0]} to "
+                f"{c['km'][1]} km away."
             )
     if spec.relative_east_of is not None:
         parts.append(f"East of {spec.relative_east_of}E values are relative only.")
@@ -776,12 +792,9 @@ def combine(
     caveat = _caveat(spec, checks, tie.rate_mm_yr)
     east_check = next((c for c in checks if c["station"] == EAST_CHECK and "difference" in c), None)
     if spec.relative_east_of is not None and east_check:
-        scene_rate = tie.rate_mm_yr + east_check["scene_minus_tie"]
-        station_rate = tie.rate_mm_yr + east_check["gnss_minus_tie"]
-        sign = "" if _same_sign(scene_rate, station_rate) else ", with the opposite sign"
         note = (
             f"GNSS station {EAST_CHECK}, east of here, disagrees by about "
-            f"{abs(east_check['difference']):.0f} mm per year{sign}, so do not read this as "
+            f"{abs(east_check['difference']):.0f} mm per year, so do not read this as "
             "absolute motion."
         )
         for p in points:
