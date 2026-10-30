@@ -17,7 +17,7 @@ from datetime import date
 import httpx
 
 from lithos_ingest.base import FRAME_INDEX
-from lithos_ingest.licsar_archive import ARCHIVE
+from lithos_ingest.licsar_archive import ARCHIVE, Throttle
 
 _FRAME = re.compile(r'href="(\d{3}[AD]_\d{5}_\d{6})/"')
 _TRACK = re.compile(r'href="(\d{1,3})/"')
@@ -50,11 +50,13 @@ def parse_poly(text: str) -> tuple[float, float, float, float] | None:
 
 
 def crawl(workers: int = 6) -> dict:
+    throttle = Throttle()
     with httpx.Client(timeout=60.0, follow_redirects=True) as client:
 
         def text(url: str) -> str:
             for attempt in range(4):
                 time.sleep(attempt * 5)
+                throttle.wait()
                 try:
                     resp = client.get(url)
                 except httpx.HTTPError:

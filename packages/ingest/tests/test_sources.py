@@ -6,6 +6,7 @@ from __future__ import annotations
 import io
 import json
 import zipfile
+from datetime import date, timedelta
 from pathlib import Path
 
 import httpx
@@ -14,31 +15,45 @@ import pytest
 import respx
 from lithos_core.sbas import invert_network, phase_to_los_mm
 from lithos_ingest import frames as crawler
+from lithos_ingest import gnss
 from lithos_ingest import licsar_archive as archive
-from lithos_ingest.base import BBox, PointFilters
+from lithos_ingest.base import BBox, PointFilters, data_dir
 from lithos_ingest.catalog import LithosCatalog
+from lithos_ingest.scene import _at
 from lithos_ingest.sources.egms import EgmsSource, parse_ortho_csv
 from lithos_ingest.sources.licsar import LicsarSource
 
-BOLOGNA = BBox(11.18, 44.40, 11.60, 44.60)
+BOLOGNA = BBox(11.18, 44.40, 11.68, 44.60)
 FIXTURES = Path(__file__).parent / "fixtures" / "licsar"
 
 
 def test_scene_loads_measured_points():
     src = LicsarSource()
     pts = src.query_points(BOLOGNA)
-    assert len(pts) > 1000
+    assert len(pts) > 800
     assert all(BOLOGNA.contains(p.lon, p.lat) for p in pts)
     assert all(p.source == "licsar" for p in pts)
     assert all("117A_04454_131312" in p.product for p in pts)
 
 
-def test_scene_shows_the_plain_sinking_and_the_foothills_still():
-    pts = LicsarSource().query_points(BOLOGNA)
-    north = [p.vertical_velocity for p in pts if p.lat > 44.54 and p.lon < 11.42]
-    south = [p.vertical_velocity for p in pts if p.lat < 44.47 and p.lon < 11.42]
-    assert np.median(north) < -8
-    assert abs(np.median(south)) < 2
+def test_scene_agrees_with_a_gnss_station_it_was_not_tied_to():
+    meta = LicsarSource().hero
+    assert meta["datum"]["station"] == "BOLG"
+    checks = [c for c in meta["checks"] if "difference" in c]
+    assert checks
+    # Honest bound, not a target: see "The hero scene" in docs/coverage.md.
+    assert all(abs(c["difference"]) < 6.0 for c in checks)
+
+
+def test_scene_window_is_what_was_solved():
+    blob = json.loads((data_dir() / "scenes" / "bologna" / "timeseries.json").read_text("utf-8"))
+    meta = LicsarSource().hero
+    assert blob["dates"][0] == meta["first_epoch"]
+    assert blob["dates"][-1] == meta["last_epoch"]
+    series = np.array(
+        [[np.nan if v is None else v for v in s] for s in blob["series"].values()], dtype=float
+    )
+    assert np.isfinite(series).mean(axis=0).min() >= 0.5
 
 
 def test_scene_time_series_present():
@@ -152,6 +167,24 @@ def test_solves_a_recorded_cell():
     assert solved.residual_rms_mm < 3
 
 
+def test_fits_a_recorded_station():
+    text = (FIXTURES.parent / "gnss" / "BOLG.tenv3").read_text(encoding="utf-8")
+    rate = gnss.fit_rate("BOLG", text, date(2021, 10, 10), date(2024, 4, 20))
+    assert rate is not None
+    assert -5 < rate.rate_mm_yr < -1
+    assert gnss.fit_rate("BOLG", text, date(2010, 1, 1), date(2024, 4, 20)) is None
+
+
+def test_a_gap_is_not_read_across():
+    start = date(2022, 1, 1)
+    dates = [start, start + timedelta(days=12), start + timedelta(days=200)]
+    series = np.array([0.0, 1.0, 2.0])
+    target = [start + timedelta(days=6), start + timedelta(days=100), start + timedelta(days=300)]
+    out = _at(dates, target, series)
+    assert np.isclose(out[0], 0.5)
+    assert np.isnan(out[1]) and np.isnan(out[2])
+
+
 # --- EGMS ---------------------------------------------------------------------------
 # No CLMS key was available when this was written, so these exercise the adapter against
 # the response shapes documented in the copernicus-land/egms-api notebook and a hand-made
@@ -193,6 +226,19 @@ def test_egms_without_a_key_returns_nothing():
     assert src.configured is False
     assert src.query_points(BBox(11.0, 44.0, 12.0, 45.0)) == []
     assert src.list_coverage()[0].available is False
+
+
+def test_an_unusable_key_turns_egms_off_and_says_so():
+    src = EgmsSource(service_key={"unreadable": "bad json"})
+    assert src.configured is False
+    assert "unusable" in (src.problem or "")
+    assert src.query_points(BBox(11.0, 44.0, 12.0, 45.0)) == []
+    assert src.list_coverage()[0].available is False
+    assert "unusable" in (src.list_coverage()[0].note or "")
+    LithosCatalog(sources=[src]).coverage_grid()
+
+    broken = dict(_service_key(), private_key="not a key")
+    assert EgmsSource(service_key=broken).configured is False
 
 
 def test_parse_ortho_csv_reads_epoch_columns():

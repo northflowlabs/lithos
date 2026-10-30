@@ -2,7 +2,7 @@
 
 # LITHOS
 
-LITHOS is an open source ground motion map that shows how the ground rises and sinks, to the millimetre, measured by radar satellites.
+LITHOS is an open source ground motion map that shows how the ground rises and sinks, measured by radar satellites.
 
 [Research page](https://research.northflow.no/systems/lithos) · [Quickstart](docs/quickstart.md) · [Notebook](https://colab.research.google.com/github/northflowlabs/lithos/blob/main/packages/notebook/lithos_quickstart.ipynb) · [Licence](#licence)
 
@@ -11,16 +11,16 @@ LITHOS is an open source ground motion map that shows how the ground rises and s
 
 <img src="docs/assets/hero.png" alt="LITHOS map of Bologna, red where the plain north of the city sinks" width="820"/>
 
-<sub>Bologna, measured from Sentinel-1, October 2021 to April 2024: more than 20 mm per year of subsidence on the plain north of the city. Red is sinking, blue is rising. LiCSAR contains modified Copernicus Sentinel data analysed by COMET.</sub>
+<sub>Bologna, measured from Sentinel-1, October 2021 to April 2024: up to about 20 mm per year of subsidence on the plain north of the city, tied to GNSS station BOLG. Red is sinking, blue is rising. LiCSAR contains modified Copernicus Sentinel data 2021 to 2024 analysed by COMET. LiCSAR uses JASMIN.</sub>
 
 ## What it does
 
-Cities sink as groundwater is drawn down, coastlines subside, and dams, railways and buildings deform years before anyone notices. Radar satellites have measured this to the millimetre for more than a decade, and the processed data is public.
+Cities sink as groundwater is drawn down, coastlines subside, and dams, railways and buildings deform years before anyone notices. Radar satellites have measured this for more than a decade, and the processed data is public.
 
 LITHOS reads two of those public datasets. From the global COMET LiCSAR archive it reads unwrapped interferograms and solves them into scenes: displacement histories in two viewing geometries, combined into vertical motion. With a free key it also reads Ortho tiles from the European Ground Motion Service (EGMS). A map a non-specialist can read and an anomaly engine sit on top. LITHOS does not process raw radar.
 
-- **Click a point** to see its line-of-sight and vertical velocity in mm per year, its displacement time series and a plain-language summary, for example: *"This point has been sinking about 14 mm/year and accelerated after early 2023."*
-- **Draw an area** to get aggregate statistics, a count of anomalous points and callouts for any new subsidence or uplift bowl inside it.
+- **Click a point** to see its line-of-sight and vertical velocity in mm per year, its displacement time series and a plain-language summary, for example: *"This point sank steadily at about 14 mm per year from October 2021 to April 2024."*
+- **Draw an area** to get aggregate statistics, a count of points whose behaviour changed, and the hotspots inside it.
 - **See where data exists.** A coverage layer shows where the archive holds Sentinel-1 frames and how recent they are.
 - **Share and export.** Every view has a permalink. Export the map as PNG, a time series as CSV or an area as GeoJSON.
 - **Build on it.** A documented API serves coverage, points, time series and anomaly results.
@@ -32,7 +32,7 @@ LITHOS measures dry-land surface motion: subsidence and uplift. It reports obser
 Every point and area runs through a pipeline of standard, published statistics:
 
 - **Acceleration and change points:** finds when a trend shifts, with the onset date
-- **Emerging clusters:** hotspot analysis that flags a new deformation bowl inside an area
+- **Hotspots:** Getis-Ord Gi* finds where mean velocity stands out from the area
 - **Seasonal and secular motion:** separates reversible seasonal swings from long-term motion
 - **Confidence gating:** low-coherence points are not over-flagged
 
@@ -42,7 +42,7 @@ Each flag carries a machine-readable record (type, magnitude, onset, confidence,
 
 | Region | Source | Coverage | Notes |
 | --- | --- | --- | --- |
-| Bologna, Italy | COMET LiCSAR | Measured scene, about 1,500 points at 400 m | October 2021 to April 2024 |
+| Bologna, Italy | COMET LiCSAR | Measured scene, about 1,000 points at 400 m | October 2021 to April 2024 |
 | Anywhere the archive has an ascending and a descending frame | COMET LiCSAR | Build a scene with one command | Frames are mapped in the coverage layer |
 | EU, Norway, UK, Iceland | Copernicus EGMS | Dense, validated, millimetre grade | Needs a free CLMS API key; rolling five-year releases |
 
@@ -85,7 +85,8 @@ Every source normalises into one schema, so new coverage changes nothing downstr
 
 Credit these sources in any work you publish with LITHOS:
 
-- **COMET LiCSAR.** LiCSAR contains modified Copernicus Sentinel data [years used] analysed by the Centre for the Observation and Modelling of Earthquakes, Volcanoes and Tectonics (COMET). UK Open Government Licence v3.0.
+- **COMET LiCSAR.** LiCSAR contains modified Copernicus Sentinel data [years used] analysed by the Centre for the Observation and Modelling of Earthquakes, Volcanoes and Tectonics (COMET). LiCSAR uses JASMIN, the UK's collaborative data analysis environment (<http://jasmin.ac.uk>). UK Open Government Licence v3.0. Cite Lazecky, M.; Maghsoudi, Y. (2022): LiCSAR interferometry products, NERC EDS Centre for Environmental Data Analysis.
+- **Nevada Geodetic Laboratory**, for the GNSS tie. Cite Blewitt et al. (2018), Eos 99, and the station's data provider.
 - **European Ground Motion Service (EGMS)**, Copernicus Land Monitoring Service, when you use EGMS tiles. Contains modified Copernicus data.
 
 LITHOS fetches LiCSAR products over the network and contains no LiCSAR or LiCSBAS code. Its time-series solver is written from the published small-baseline method. The citation text and the details are in [docs/attribution.md](docs/attribution.md) and [docs/licensing.md](docs/licensing.md).

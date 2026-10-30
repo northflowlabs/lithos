@@ -8,8 +8,8 @@ can read real data without a network.
 - `117A_04454_131312-poly.txt`: that frame's footprint, unchanged.
 - `20230710_20230722.geo.unw.tif`: a 30 by 30 pixel window of that interferogram, north of Bologna.
 - `cell_north_of_bologna.json`: unwrapped phase for one 400 m cell of frame
-  `095D_04589_131313`, one value per interferogram, averaged and tied to the reference ground
-  as `lithos_ingest.scene` does.
+  `095D_04589_131313`, one value per interferogram, averaged and tied to ground south of the
+  city.
 
 LiCSAR contains modified Copernicus Sentinel data 2021 to 2024 analysed by the Centre for the
 Observation and Modelling of Earthquakes, Volcanoes and Tectonics (COMET).

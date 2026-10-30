@@ -1,7 +1,6 @@
 name: Source freshness
 
-# Scheduled check that EGMS / LiCSAR endpoints are reachable and reporting. New
-# coverage events feed the public launch-cadence narrative; a down source alerts.
+# Scheduled check that the EGMS and LiCSAR endpoints answer. A down source fails the run.
 on:
   schedule:
     - cron: "0 6 * * *" # daily 06:00 UTC

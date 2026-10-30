@@ -14,7 +14,7 @@ COPY packages/ingest/ packages/ingest/
 COPY packages/api/ packages/api/
 
 RUN pip install --upgrade pip \
-    && pip install ./packages/core ./packages/ingest ./packages/api
+    && pip install ./packages/core "./packages/ingest[egms]" ./packages/api
 
 # Measured scenes the API serves.
 COPY data/scenes/ data/scenes/

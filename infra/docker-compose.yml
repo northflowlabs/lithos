@@ -1,7 +1,8 @@
 # One-command local bring-up for LITHOS.
 #   docker compose -f infra/docker-compose.yml up --build
 # The API serves the measured scenes with no credentials. Put a CLMS API key in a root
-# .env as CLMS_SERVICE_KEY to pull EGMS tiles as well.
+# .env as CLMS_SERVICE_KEY to pull EGMS tiles as well. To use CLMS_SERVICE_KEY_FILE instead,
+# mount the file into the api service and set the variable to its path in the container.
 
 services:
   api:
@@ -11,22 +12,24 @@ services:
     image: lithos-api:local
     ports:
       - "8000:8000"
+    env_file:
+      - path: ../.env
+        required: false
     environment:
       LITHOS_API_CORS_ORIGINS: "http://localhost:3000"
       LITHOS_LOG_LEVEL: "INFO"
-      CLMS_SERVICE_KEY: "${CLMS_SERVICE_KEY:-}"
     restart: unless-stopped
 
   web:
     build:
       context: ..
       dockerfile: infra/Dockerfile.web
+      args:
+        # Baked in at build time; the browser talks to the API, so use the host-visible URL.
+        NEXT_PUBLIC_LITHOS_API: "http://localhost:8000"
     image: lithos-web:local
     ports:
       - "3000:3000"
-    environment:
-      # The browser talks to the API directly, so this is the host-visible URL.
-      NEXT_PUBLIC_LITHOS_API: "http://localhost:8000"
     depends_on:
       - api
     restart: unless-stopped

@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import functools
-from datetime import date
 
 from fastapi import HTTPException
-from lithos_ingest.base import BBox, PointFilters, TimeWindow
+from lithos_ingest.base import BBox, PointFilters
 from lithos_ingest.catalog import LithosCatalog
 
 # A bbox larger than this (in square degrees) is rejected to protect the service.
@@ -35,14 +34,6 @@ def parse_bbox(bbox: str) -> BBox:
             413, f"bbox too large ({area:.1f} deg^2 > {MAX_BBOX_AREA}); zoom in or draw an AOI"
         )
     return b
-
-
-def parse_time_window(start: str | None, end: str | None) -> TimeWindow | None:
-    if not start and not end:
-        return None
-    s = date.fromisoformat(start) if start else None
-    e = date.fromisoformat(end) if end else None
-    return TimeWindow(start=s, end=e)
 
 
 def build_filters(

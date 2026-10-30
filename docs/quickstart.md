@@ -34,7 +34,7 @@ from lithos_ingest.catalog import LithosCatalog
 from lithos_core.anomaly import analyse_point, scan_area
 
 catalog = LithosCatalog()
-points = catalog.query_points(BBox(11.18, 44.40, 11.60, 44.60))   # Bologna
+points = catalog.query_points(BBox(11.18, 44.40, 11.68, 44.60))   # Bologna
 
 verdict = analyse_point(points[0])
 print(verdict.headline)
@@ -62,8 +62,9 @@ python -m lithos_ingest.scene bologna
 ```
 
 Add an area to `SCENES` in `lithos_ingest/scene.py` with one ascending and one descending frame
-(`LicsarSource().frames_over(bbox)` lists them) and a patch of stable ground. A scene over a city
-reads about a thousand interferograms and takes a few minutes.
+(`LicsarSource().frames_over(bbox)` lists them), a GNSS station inside the scene and an area of
+ground with little motion for the atmosphere fit. A first build over a city reads about 700
+interferograms and takes about 15 minutes. See [`refresh.md`](refresh.md).
 
 ## EGMS
 

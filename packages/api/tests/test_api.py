@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from lithos_api.app import create_app
 
 client = TestClient(create_app())
-BBOX = "11.18,44.40,11.60,44.60"
+BBOX = "11.18,44.40,11.68,44.60"
 
 
 def test_health():
@@ -49,6 +49,11 @@ def test_points_with_anomaly():
     r = client.get(f"/v1/points?bbox={BBOX}&limit=50&with_anomaly=true")
     feats = r.json()["features"]
     assert any(f["properties"].get("headline") for f in feats)
+
+
+def test_time_filters_are_refused_not_ignored():
+    r = client.get(f"/v1/points?bbox={BBOX}&start=2022-01-01")
+    assert r.status_code == 400
 
 
 def test_bbox_too_large_rejected():

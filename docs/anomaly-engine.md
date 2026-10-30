@@ -30,17 +30,24 @@ Every flag carries:
 - **machine-readable:** `type`, `magnitude_mm_yr`, `onset_date`, `confidence`, `evidence`
   (the underlying statistics).
 - **human-readable:** one calm, precise, quotable sentence with uncertainty stated, for
-  example *"This point has been sinking about 14 mm/year and the rate increased after early
-  2023."* No alarmism. No failure prediction.
+  example *"This point sank steadily at about 14 mm per year from October 2021 to April 2024."*
+  Sentences are in the past tense and name their period, because the data has an end date. No
+  alarmism. No failure prediction.
 
 ## Per-area analysis (`scan_area`)
 
 1. Every point is analysed and ranked by **newsworthiness**
    (magnitude × acceleration factor × quality).
-2. **Emerging-cluster detection** runs Getis-Ord Gi* over the velocity field with a
-   distance-band spatial weights matrix. A strong negative z marks a forming subsidence
-   bowl; a strong positive z marks uplift. Each cluster is reported with its z-score and
-   centre.
+2. **Hotspot detection** runs Getis-Ord Gi* over the velocity field with a distance-band
+   spatial weights matrix. A strong z marks a place whose mean velocity stands out from the
+   area. Gi* is relative and has no time term: it shows where the ground differs, not when
+   that began, and a high z in a sinking area may only mean sinking less. The local mean
+   decides the reported kind: subsidence, uplift or relatively stable.
+3. **Changed behaviour** counts points whose trend changed. Steady motion is notable but
+   does not count.
+
+Trend intervals are 95% Theil-Sen intervals. They reflect scatter about the trend, not
+remaining atmosphere, the reference or the GNSS tie.
 
 ## Validation: catch the real thing, do not cry wolf
 
@@ -54,7 +61,7 @@ labelled test series with a known answer, which live in the test tree:
 | New-onset subsidence | new-onset / accelerating, onset date found |
 | Stable seasonal swing | **not** flagged (stable) |
 | Low-coherence noise | confidence gated below 0.55 |
-| A subsiding bowl in a stable field | emerging cluster detected, ranked first |
+| A subsiding bowl in a stable field | hotspot detected, ranked first |
 
 The low-level statistics have their own unit tests in `test_stats.py` (trend recovery,
 outlier resistance, seasonal separation, change-point precision, Gi* hotspot detection).

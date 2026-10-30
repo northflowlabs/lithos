@@ -31,6 +31,13 @@ log = logging.getLogger("lithos.ingest.licsar")
 
 HERO_SCENE = "bologna"
 
+# The wording the CEDA catalogue record asks for, with the years of the bundled scene.
+ACKNOWLEDGEMENT = (
+    "LiCSAR contains modified Copernicus Sentinel data 2021 to 2024 analysed by the Centre "
+    "for the Observation and Modelling of Earthquakes, Volcanoes and Tectonics (COMET). "
+    "LiCSAR uses JASMIN, the UK's collaborative data analysis environment (http://jasmin.ac.uk)."
+)
+
 
 class LicsarSource:
     """Scenes measured from LiCSAR data. Data over the network only; no GPL code."""
@@ -114,16 +121,15 @@ class LicsarSource:
             key="licsar",
             name="COMET LiCSAR",
             license=(
-                "UK Open Government Licence v3.0, and the Copernicus terms for Sentinel data. "
-                "Fetched over the network only."
+                "UK Open Government Licence v3.0 "
+                "(http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/), "
+                "and the Copernicus terms for Sentinel data. Fetched over the network only."
             ),
-            attribution=(
-                "LiCSAR contains modified Copernicus Sentinel data analysed by the Centre for "
-                "the Observation and Modelling of Earthquakes, Volcanoes and Tectonics (COMET)."
-            ),
+            attribution=ACKNOWLEDGEMENT,
             citation=(
-                "Lazecky et al. (2020), LiCSAR: An Automatic InSAR Tool for Measuring and "
-                "Monitoring Tectonic and Volcanic Activity. Remote Sensing 12(15), 2430."
+                "Lazecky, M.; Maghsoudi, Y. (2022): LiCSAR interferometry products. NERC EDS "
+                "Centre for Environmental Data Analysis. "
+                "https://catalogue.ceda.ac.uk/uuid/52cda2e0e6c04272ae15ac836c1e8493"
             ),
             coverage_description=(
                 "Sentinel-1 frames over tectonic and volcanic belts and many populated regions. "

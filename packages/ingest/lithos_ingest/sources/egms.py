@@ -74,7 +74,10 @@ class EgmsSource:
         cache_dir: Path | None = None,
     ) -> None:
         self.api_base = (api_base or os.getenv("EGMS_API_BASE", API_BASE)).rstrip("/")
-        self.service_key = service_key or self._key_from_env()
+        self.service_key = service_key if service_key is not None else self._key_from_env()
+        self.problem = self._check_key()
+        if self.problem:
+            log.warning("EGMS is off: %s", self.problem)
         self.timeout = timeout
         self.cache_dir = cache_dir or data_dir() / "cache" / "egms"
         self._token: str | None = None
@@ -84,14 +87,39 @@ class EgmsSource:
     @staticmethod
     def _key_from_env() -> dict | None:
         path = os.getenv("CLMS_SERVICE_KEY_FILE")
-        if path:
-            return json.loads(Path(path).read_text(encoding="utf-8"))
         inline = os.getenv("CLMS_SERVICE_KEY")
-        return json.loads(inline) if inline else None
+        try:
+            if path:
+                return json.loads(Path(path).read_text(encoding="utf-8"))
+            return json.loads(inline) if inline else None
+        except (OSError, ValueError) as exc:
+            return {"unreadable": str(exc)}
+
+    def _check_key(self) -> str | None:
+        """Why EGMS cannot be used here, or None. An unusable key turns EGMS off; it never
+        stops the service."""
+        key = self.service_key
+        if key is None:
+            return None
+        missing = {"client_id", "user_id", "token_uri", "private_key"} - set(key)
+        if missing:
+            return f"the CLMS key is unusable (missing {', '.join(sorted(missing))})"
+        try:
+            import pyproj  # noqa: F401
+            from cryptography.hazmat.primitives.serialization import (
+                load_pem_private_key,
+            )
+        except ImportError:
+            return "the `egms` extra of pylithos-ingest is not installed"
+        try:
+            load_pem_private_key(key["private_key"].encode(), password=None)
+        except (ValueError, TypeError, AttributeError):
+            return "the CLMS key's private key cannot be read"
+        return None
 
     @property
     def configured(self) -> bool:
-        return self.service_key is not None
+        return self.service_key is not None and self.problem is None
 
     # --- auth --------------------------------------------------------------------
     def _access_token(self) -> str:
@@ -209,7 +237,7 @@ class EgmsSource:
                 note=(
                     "EGMS Ortho tiles, Copernicus Participating States."
                     if self.configured
-                    else "EGMS needs a CLMS API key, which this deployment does not have."
+                    else f"EGMS is not available here: {self.problem or 'no CLMS API key'}."
                 ),
             )
         ]

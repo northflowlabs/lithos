@@ -1,9 +1,8 @@
-"""Data-freshness and source-availability monitor.
+"""Source-availability monitor.
 
-Scheduled job (cron / GitHub Actions) that checks whether the upstream EGMS and
-LiCSAR endpoints are reachable and whether new releases have appeared. Emits one
-JSON line per source so it can feed a log drain or alerting. New-coverage events are
-the launch-cadence narrative: when a source gains data, announce it.
+Scheduled job (cron / GitHub Actions) that checks whether the upstream EGMS and LiCSAR
+endpoints answer. Emits one JSON line per source so it can feed a log drain or alerting.
+It says nothing about whether new data has appeared.
 
 This script never crashes the service; it only reports. Run:
     python infra/freshness_monitor.py

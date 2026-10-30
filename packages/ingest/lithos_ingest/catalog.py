@@ -165,8 +165,14 @@ class LithosCatalog:
                 ]
                 if overlapping:
                     sources = sorted({s for c in overlapping for s in c.sources})
-                    density = "dense" if len(overlapping) >= 8 else "moderate"
-                    newest = max((c.newest_window or "" for c in overlapping), default="")
+                    frames = [c for c in overlapping if "licsar" in c.sources]
+                    density = "dense" if len(frames) >= 8 else "moderate"
+                    newest = max((c.newest_window or "" for c in frames), default="")
+                    parts = []
+                    if frames:
+                        parts.append(f"{len(frames)} Sentinel-1 frames, newest {newest}")
+                    if "egms" in sources:
+                        parts.append("EGMS tiles where the service covers this cell")
                     grid.append(
                         CoverageCell(
                             cell_id=f"g{int(cx)}_{int(cy)}",
@@ -175,10 +181,7 @@ class LithosCatalog:
                             sources=sources,
                             newest_window=newest or None,
                             density_class=density,
-                            note=(
-                                f"{len(overlapping)} Sentinel-1 frames in the archive "
-                                f"({', '.join(sources)}), newest {newest or 'unknown'}."
-                            ),
+                            note="; ".join(parts) + ".",
                         )
                     )
                 else:

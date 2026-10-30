@@ -5,22 +5,66 @@
   "bbox": [
     11.18,
     44.4,
-    11.6,
+    11.68,
     44.6
   ],
   "center": [
-    11.39,
+    11.43,
     44.5
   ],
   "window": "2021-10 to 2024-04",
-  "first_epoch": "2021-10-11",
+  "first_epoch": "2021-10-12",
   "last_epoch": "2024-04-23",
   "built": "2026-10-30",
   "frames": [
     "117A_04454_131312",
     "095D_04589_131313"
   ],
-  "point_count": 1542,
+  "point_count": 1072,
   "epochs": 63,
-  "note": "Measured with Sentinel-1 from frames 117A_04454_131312 and 095D_04589_131313, COMET LiCSAR interferograms, October 2021 to April 2024. Motion is relative to the foothills south of the city."
+  "datum": {
+    "station": "BOLG",
+    "rate_mm_yr": -3.07,
+    "sigma_mm_yr": 0.22,
+    "days": 920,
+    "first": "2021-10-12",
+    "last": "2024-04-23"
+  },
+  "checks": [
+    {
+      "station": "BLGN",
+      "lon": 11.3506,
+      "lat": 44.511,
+      "gnss": -6.42,
+      "gnss_sigma": 1.08,
+      "until": "2022-11-16",
+      "scene": -2.43,
+      "cells": 311,
+      "difference": 3.99
+    },
+    {
+      "station": "MEDI",
+      "lon": 11.6468,
+      "lat": 44.52,
+      "gnss": -2.52,
+      "gnss_sigma": 0.23,
+      "until": "2024-04-23",
+      "scene": 2.31,
+      "cells": 7,
+      "difference": 4.83
+    }
+  ],
+  "filters": {
+    "cells": 6250,
+    "no_data": 144,
+    "poor_network_fit": 1,
+    "high_ground": 433,
+    "low_coherence": 4526,
+    "too_few_dates": 4,
+    "split_network_kept": 3,
+    "lone_outlier": 70,
+    "wide_interval": 0,
+    "sideways": 0
+  },
+  "note": "Measured with Sentinel-1 from frames 117A_04454_131312 and 095D_04589_131313, COMET LiCSAR interferograms, October 2021 to April 2024. Vertical motion is tied to GNSS station BOLG. Stations it was not tied to differ by up to 5 mm per year."
 }

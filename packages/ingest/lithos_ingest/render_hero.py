@@ -55,7 +55,7 @@ def render(out_path: Path | None = None) -> Path:
     ax.text(
         0.99,
         0.01,
-        "LiCSAR contains modified Copernicus Sentinel data analysed by COMET",
+        "LiCSAR contains modified Copernicus Sentinel data 2021 to 2024 analysed by COMET. LiCSAR uses JASMIN.",
         transform=ax.transAxes,
         ha="right",
         va="bottom",

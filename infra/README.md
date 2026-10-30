@@ -13,13 +13,10 @@ The API serves the measured scenes with no credentials. Add `CLMS_SERVICE_KEY` t
 
 ## Production topology
 
-Following Northflow's existing pattern:
-
-- **Web on Vercel.** The Next.js app is static-first and edge-friendly; Vercel gives
-  zero-config previews and a global CDN. Set
-  `NEXT_PUBLIC_LITHOS_API` to the public API URL.
-- **API + ingest on Hetzner.** `infra/Dockerfile.api` runs anywhere Docker runs. Put it
-  behind a reverse proxy (Caddy/Traefik) with TLS. Scenes are built separately and committed.
+- **Web.** The Next.js app is static first. Without `NEXT_PUBLIC_LITHOS_API` it serves the
+  stored scene from `public/hero`. Set the variable at build time to use an API.
+- **API.** `infra/Dockerfile.api` runs anywhere Docker runs. Put it behind a reverse proxy
+  with TLS. Scenes are built separately and committed.
 
 ### Storage
 
@@ -29,11 +26,12 @@ Scenes are plain files under `data/scenes/`, copied into the API image. There is
 
 - The API emits structured JSON logs and an `X-Response-Time-ms` header per request.
 - `infra/freshness_monitor.py` is a scheduled job (cron or the `freshness` CI workflow)
-  that checks EGMS/LiCSAR reachability and reports per-source status as JSON. It exits
-  non-zero when a source is down so alerting can hook in.
+  that checks whether the EGMS and LiCSAR endpoints answer, and reports per-source status as
+  JSON. It exits non-zero when a source is down. It does not look for new data.
+- The `refresh-scenes` workflow rebuilds the scenes on demand. See
+  [`docs/refresh.md`](../docs/refresh.md).
 
 ## Resilience
 
-Every source degrades gracefully: if EGMS or LiCSAR is unreachable, the catalog serves
-cached data and marks freshness rather than crashing. Upstream schema changes surface as
-empty results plus a logged warning, never a hard 500.
+The API serves the scenes on disk, so a LiCSAR outage does not affect it. If EGMS is
+unreachable or its key is unusable, the adapter logs a warning and returns no points.

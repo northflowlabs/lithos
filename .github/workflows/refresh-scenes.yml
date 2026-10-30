@@ -1,0 +1,49 @@
+name: Refresh scenes
+
+# Rebuilds the measured scenes and the frame index from the public archive, and offers the
+# result as a pull request for a person to review. Run it by hand from the Actions tab. It
+# reads about two products a second and keeps what it read in the Actions cache, so a later
+# run only asks the archive for what is new. See docs/refresh.md, which also has the schedule
+# to add once this has been run by hand a few times.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: data/cache
+          key: licsar-${{ github.run_id }}
+          restore-keys: licsar-
+      - name: Install
+        run: pip install -e packages/core -e "packages/ingest[scenes]" matplotlib
+      - name: Rebuild
+        run: |
+          python -m lithos_ingest.frames
+          python -m lithos_ingest.scene bologna
+          python -m lithos_ingest.export_web_assets
+          python -m lithos_ingest.render_hero
+      - name: Offer the result for review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git diff --quiet && { echo "Nothing changed"; exit 0; }
+          branch="refresh-scenes-${{ github.run_id }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add data/scenes packages/ingest/lithos_ingest/data packages/web/public/hero docs/assets/hero.png
+          git commit -m "Refresh scenes from the archive"
+          git push origin "$branch"
+          gh pr create --title "Refresh scenes" --body "Rebuilt by the refresh-scenes workflow. Check the window and the station checks in data/scenes/*/meta.json before merging."

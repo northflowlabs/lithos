@@ -11,7 +11,8 @@ WORKDIR /app
 RUN corepack enable
 COPY --from=deps /app/node_modules ./node_modules
 COPY packages/web/ ./
-ENV NEXT_TELEMETRY_DISABLED=1
+ARG NEXT_PUBLIC_LITHOS_API=
+ENV NEXT_PUBLIC_LITHOS_API=$NEXT_PUBLIC_LITHOS_API NEXT_TELEMETRY_DISABLED=1
 RUN pnpm build
 
 FROM node:20-slim AS run

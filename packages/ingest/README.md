@@ -23,4 +23,4 @@ does not import, vendor, or link LiCSBAS / `licsar_proc` (which are GPL-3.0). Se
 `python -m lithos_ingest.scene bologna` reads the interferograms over Bologna, solves them and
 writes `data/scenes/bologna/`. `python -m lithos_ingest.frames` refreshes the frame index, and
 `python -m lithos_ingest.export_web_assets` the static files the web app can run from. Scene
-building needs the `scenes` extra (rasterio).
+building needs the `scenes` extra (rasterio). See [`docs/refresh.md`](../../docs/refresh.md).

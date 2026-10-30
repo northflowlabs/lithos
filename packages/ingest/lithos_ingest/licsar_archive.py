@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import re
+import threading
 import time
 from dataclasses import dataclass
 from datetime import date
@@ -62,14 +63,30 @@ def list_pairs(frame: str, timeout: float = 60.0) -> list[Pair]:
     return parse_pairs(resp.text)
 
 
+class Throttle:
+    """Spaces out requests to the archive, however many threads share it."""
+
+    def __init__(self, requests_per_second: float | None = None) -> None:
+        rate = requests_per_second or float(os.getenv("LICSAR_RATE_LIMIT_RPS", "2"))
+        self._interval = 1.0 / max(rate, 0.1)
+        self._next = 0.0
+        self._lock = threading.Lock()
+
+    def wait(self) -> None:
+        with self._lock:
+            now = time.monotonic()
+            start = max(now, self._next)
+            self._next = start + self._interval
+        if start > now:
+            time.sleep(start - now)
+
+
 class Reader:
     """Windowed GeoTIFF reads at a polite request rate."""
 
     def __init__(self, bbox: BBox, requests_per_second: float | None = None) -> None:
         self.bbox = bbox
-        rate = requests_per_second or float(os.getenv("LICSAR_RATE_LIMIT_RPS", "2"))
-        self._interval = 1.0 / max(rate, 0.1)
-        self._last = 0.0
+        self._throttle = Throttle(requests_per_second)
 
     def read(self, url: str) -> tuple[np.ndarray, tuple[float, float, float, float]] | None:
         """(array, (west, north, dx, dy)), or None when the product does not exist."""
@@ -77,11 +94,7 @@ class Reader:
         from rasterio.errors import RasterioIOError
         from rasterio.windows import Window, from_bounds
 
-        wait = self._interval - (time.monotonic() - self._last)
-        if wait > 0:
-            time.sleep(wait)
-        self._last = time.monotonic()
-
+        self._throttle.wait()
         path = url if not url.startswith("http") else f"/vsicurl/{url}"
         try:
             with (

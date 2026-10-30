@@ -72,7 +72,7 @@ The catalog serves the Bologna scene, measured from Sentinel-1. With a CLMS API 
 from lithos_ingest.catalog import LithosCatalog
 
 # Bologna and the subsiding plain to its north.
-bbox = BBox(11.18, 44.40, 11.60, 44.60)
+bbox = BBox(11.18, 44.40, 11.68, 44.60)
 
 catalog = LithosCatalog()
 points = catalog.query_points(bbox)
@@ -146,9 +146,10 @@ plt.show()
     ),
     cell(
         MD,
-        """## 5. Scan an area for emerging clusters
+        """## 5. Scan an area for hotspots
 
-The spatial scan (Getis-Ord Gi*) surfaces newly forming subsidence or uplift bowls.
+The spatial scan (Getis-Ord Gi*) finds places whose mean velocity stands out from the area.
+It has no time term, so it shows where the ground differs, not when that began.
 """,
     ),
     cell(
@@ -156,11 +157,11 @@ The spatial scan (Getis-Ord Gi*) surfaces newly forming subsidence or uplift bow
         """from lithos_core.anomaly import scan_area
 
 result = scan_area(points, cluster_radius_deg=0.01)
-print(f"Points: {result.point_count}  Anomalous: {result.anomalous_count}")
+print(f"Points: {result.point_count}  Changed behaviour: {result.anomalous_count}")
 print(f"Mean velocity: {result.mean_velocity_mm_yr:.1f} mm/yr")
 print(f"Max subsidence: {result.max_subsidence_mm_yr:.1f} mm/yr")
 for c in result.cluster_flags:
-    print("Cluster:", c.evidence.get("kind"), "Gi* z =", c.evidence.get("gi_z"))
+    print("Hotspot:", c.evidence.get("kind"), "Gi* z =", c.evidence.get("gi_z"))
 """,
     ),
     cell(

@@ -18,7 +18,6 @@ from lithos_api.deps import (
     build_filters,
     get_catalog,
     parse_bbox,
-    parse_time_window,
 )
 from lithos_api.geometry import point_in_polygon, ring_bbox
 from lithos_api.graphql import schema
@@ -140,11 +139,14 @@ def create_app() -> FastAPI:
         limit: int = Query(5000, le=20000),
         with_anomaly: bool = False,
     ) -> dict:
+        if start or end:
+            raise HTTPException(
+                400, "start and end are not supported: a scene is served over its whole window"
+            )
         cat = get_catalog()
         b = parse_bbox(bbox)
-        tw = parse_time_window(start, end)
         filters = build_filters(min_coherence, min_velocity, limit)
-        pts = cat.query_points(b, tw, filters)
+        pts = cat.query_points(b, None, filters)
         verdicts = {p.id: cat.verdict_for(p) for p in pts} if with_anomaly else None
         return serialize.points_feature_collection(pts, verdicts)
 
