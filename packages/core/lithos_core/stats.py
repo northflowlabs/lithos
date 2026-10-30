@@ -142,7 +142,7 @@ def detect_change_points(
 
     InSAR residuals are autocorrelated, so the dates are worth fewer independent samples
     than their count. F is scaled by (1 - r) / (1 + r), the effective-sample ratio for lag-1
-    autocorrelation r of the single-line residuals. A split survives only if the scaled F
+    autocorrelation r of the two-segment residuals. A split survives only if the scaled F
     exceeds `penalty`, a screening threshold, not a stated significance level: scene builds
     add a robustness test on top. Recurse into each segment.
 
@@ -160,9 +160,16 @@ def detect_change_points(
         pred = slope * ts + intercept
         return float(np.sum((ys - pred) ** 2))
 
-    def _independence(ts: np.ndarray, ys: np.ndarray) -> float:
-        """Share of the dates that count as independent, from lag-1 autocorrelation."""
-        residual = ys - np.polyval(np.polyfit(ts, ys, 1), ts)
+    def _independence(ts: np.ndarray, ys: np.ndarray, k: int) -> float:
+        """Share of the dates that count as independent, from lag-1 autocorrelation of the
+        two-segment residuals. A single line would leave the change itself in the residuals
+        and read a real break as autocorrelation."""
+        residual = np.concatenate(
+            [
+                ys[:k] - np.polyval(np.polyfit(ts[:k], ys[:k], 1), ts[:k]),
+                ys[k:] - np.polyval(np.polyfit(ts[k:], ys[k:], 1), ts[k:]),
+            ]
+        )
         denom = float(residual @ residual)
         if denom <= 0:
             return 1.0
@@ -178,7 +185,6 @@ def detect_change_points(
         if base <= 0:
             return
         best_idx, best_stat = -1, 0.0
-        independence = _independence(ts, ys)
         for k in range(min_segment, (hi - lo) - min_segment):
             left = _rss(ts[:k], ys[:k])
             right = _rss(ts[k:], ys[k:])
@@ -186,7 +192,7 @@ def detect_change_points(
             n = hi - lo
             # Proper nested-model F-test: 2 extra params for the second segment.
             denom = (left + right) / max(n - 4, 1)
-            stat = independence * (improvement / 2.0) / denom if denom > 0 else 0.0
+            stat = _independence(ts, ys, k) * (improvement / 2.0) / denom if denom > 0 else 0.0
             if stat > best_stat:
                 best_stat, best_idx = stat, lo + k
         if best_idx >= 0 and best_stat >= penalty:

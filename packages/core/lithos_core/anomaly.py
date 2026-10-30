@@ -103,8 +103,9 @@ def analyse_point(point: MeasurementPoint) -> PointVerdict:
     start = ts.dates[0]
     period = (ts.dates[0], ts.dates[-1])
 
-    trend = stats.robust_trend(t_days, y)
+    # Velocity, interval and significance all come from the series with its season removed.
     seasonal = stats.harmonic_decompose(t_days, y)
+    trend = stats.robust_trend(t_days, seasonal.deseasonalised)
     # Detect regime changes on the de-seasonalised series so an annual swing is not
     # misread as a trend change.
     span_per_date = float(t_days[-1] - t_days[0]) / max(len(t_days) - 1, 1)
@@ -201,7 +202,8 @@ def analyse_point(point: MeasurementPoint) -> PointVerdict:
         AnomalyType.NEW_ONSET_UPLIFT,
     ):
         accel_factor = 2.0
-    newsworthiness = float(abs(obs_velocity) * accel_factor * qf)
+    # A value that is relative only has no place in a ranking of motion.
+    newsworthiness = 0.0 if point.datum_note else float(abs(obs_velocity) * accel_factor * qf)
     interval = round(
         point.velocity_uncertainty
         if point.velocity_uncertainty is not None
@@ -223,19 +225,26 @@ def analyse_point(point: MeasurementPoint) -> PointVerdict:
 class AreaScanResult:
     point_count: int
     anomalous_count: int
-    mean_velocity_mm_yr: float
-    max_subsidence_mm_yr: float
-    max_uplift_mm_yr: float
+    mean_velocity_mm_yr: float | None  # None when no usable point remains
+    max_subsidence_mm_yr: float | None
+    max_uplift_mm_yr: float | None
     verdicts: list[PointVerdict]
     cluster_flags: list[AnomalyFlag]
+    left_out_count: int = 0  # relative-only points, kept out of the statistics
+    note: str | None = None
 
     def to_dict(self) -> dict:
+        def rounded(value: float | None) -> float | None:
+            return None if value is None else round(value, 2)
+
         return {
             "point_count": self.point_count,
             "anomalous_count": self.anomalous_count,
-            "mean_velocity_mm_yr": round(self.mean_velocity_mm_yr, 2),
-            "max_subsidence_mm_yr": round(self.max_subsidence_mm_yr, 2),
-            "max_uplift_mm_yr": round(self.max_uplift_mm_yr, 2),
+            "left_out_count": self.left_out_count,
+            "note": self.note,
+            "mean_velocity_mm_yr": rounded(self.mean_velocity_mm_yr),
+            "max_subsidence_mm_yr": rounded(self.max_subsidence_mm_yr),
+            "max_uplift_mm_yr": rounded(self.max_uplift_mm_yr),
             "cluster_flags": [f.model_dump(mode="json") for f in self.cluster_flags],
             "top_points": [v.model_dump(mode="json") for v in self.verdicts[:25]],
         }
@@ -262,9 +271,12 @@ def scan_area(
     places whose mean velocity stands out from the area. Gi* has no time term, so a
     hotspot says where the ground differs, not when that began."""
     verdicts = [analyse_point(p) for p in points]
+    relative = {p.id for p in points if p.datum_note}
+    verdicts = [v for v in verdicts if v.point_id not in relative]
     verdicts.sort(key=lambda v: v.newsworthiness, reverse=True)
 
-    # Values that are relative only do not enter the area's statistics.
+    # Values that are relative only do not enter the area's statistics or its ranking.
+    total = len(points)
     points = [p for p in points if not p.datum_note]
     velocities = np.array(
         [p.best_velocity if p.best_velocity is not None else 0.0 for p in points]
@@ -305,11 +317,17 @@ def scan_area(
             )
 
     return AreaScanResult(
-        point_count=len(verdicts),
+        point_count=total,
         anomalous_count=anomalous,
-        mean_velocity_mm_yr=float(np.mean(velocities)) if len(velocities) else 0.0,
-        max_subsidence_mm_yr=float(np.min(velocities)) if len(velocities) else 0.0,
-        max_uplift_mm_yr=float(np.max(velocities)) if len(velocities) else 0.0,
+        left_out_count=len(relative),
+        note=(
+            "Every point here is relative only, so the area has no statistics."
+            if relative and not points
+            else None
+        ),
+        mean_velocity_mm_yr=float(np.mean(velocities)) if len(velocities) else None,
+        max_subsidence_mm_yr=float(np.min(velocities)) if len(velocities) else None,
+        max_uplift_mm_yr=float(np.max(velocities)) if len(velocities) else None,
         verdicts=verdicts,
         cluster_flags=cluster_flags,
     )

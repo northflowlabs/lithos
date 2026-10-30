@@ -159,4 +159,16 @@ def test_relative_points_stay_out_of_area_statistics():
     b.datum_note = "relative only"
     result = scan_area([a, b])
     assert result.point_count == 2
+    assert result.left_out_count == 1
     assert result.max_uplift_mm_yr < 0
+    assert [v.point_id for v in result.verdicts] == ["a"]
+
+
+def test_an_area_of_only_relative_points_has_no_statistics():
+    b = labelled_events.steady_subsidence(_rng(), rate_mm_yr=9.0, point_id="b")
+    b.datum_note = "relative only"
+    result = scan_area([b]).to_dict()
+    assert result["mean_velocity_mm_yr"] is None
+    assert result["max_uplift_mm_yr"] is None
+    assert result["left_out_count"] == 1
+    assert "relative only" in result["note"]

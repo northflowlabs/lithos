@@ -75,3 +75,17 @@ def test_getis_ord_flags_cluster():
     # The subsiding corner should be a strong low-cluster (negative z).
     corner = [idx for idx, (i, j) in enumerate(coords) if i < 2 and j < 2]
     assert min(z[corner]) < -1.5
+
+
+def test_a_break_in_autocorrelated_noise_is_still_found():
+    rng = np.random.default_rng(5)
+    t = np.arange(150) * 12.0
+    hits = 0
+    for _ in range(40):
+        noise = np.zeros(150)
+        for i in range(1, 150):
+            noise[i] = 0.5 * noise[i - 1] + rng.normal(0, 1.5)
+        years = t / 365.25
+        trend = np.where(years < 2.5, -3 * years, -3 * 2.5 - 20 * (years - 2.5))
+        hits += bool(stats.detect_change_points(t, trend + noise))
+    assert hits >= 30
