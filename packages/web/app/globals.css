@@ -54,7 +54,7 @@ body {
   animation: slide-in 0.18s ease-out;
 }
 
-/* The credit opens over the map, clear of the legend and within the screen. */
+/* The opened credit sits solid above the legend, within the screen. */
 .maplibregl-ctrl-bottom-right {
   z-index: 20;
 }
@@ -62,6 +62,7 @@ body {
   max-height: 40vh;
   overflow-y: auto;
   background: #f6f4ef;
+  opacity: 1;
 }
 @media (min-width: 640px) {
   .maplibregl-ctrl-bottom-right {
