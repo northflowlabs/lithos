@@ -29,27 +29,29 @@
     "days": 920,
     "first": "2021-10-12",
     "last": "2024-04-23",
-    "provider": "RINEX header \"GEOFISICA BOLOGNA\""
+    "provider": "University of Bologna (UNIBO)"
   },
   "checks": [
     {
       "station": "BLGN",
       "provider": "INGV",
       "km": [
-        0.1,
-        1.5
+        0.3,
+        1.4
       ],
-      "cells": 49,
+      "cells": 27,
       "dates": 32,
       "first": "2021-10-12",
       "last": "2022-10-31",
-      "scene_minus_tie": -2.87,
+      "scene_minus_tie": -4.46,
       "gnss_minus_tie": -3.12,
-      "difference": 0.25
+      "months": 13,
+      "difference": -1.78,
+      "interval_95": 4.6
     },
     {
       "station": "MEDI",
-      "provider": "ASI Telespazio",
+      "provider": "Agenzia Spaziale Italiana (ASI)",
       "km": [
         3.8,
         4.4
@@ -60,18 +62,26 @@
       "last": "2024-04-23",
       "scene_minus_tie": 5.29,
       "gnss_minus_tie": 0.18,
-      "difference": 5.11
+      "months": 30,
+      "difference": 4.69,
+      "interval_95": 1.6
     }
   ],
-  "caveat": "Tied to GNSS only at BOLG. At BLGN they agree within 0.2 mm per year. At MEDI the scene reads +2.2 mm per year where GNSS reads -2.9, the opposite sign, from cells 3.8 to 4.4 km away. East of 11.45E values are relative only.",
+  "caveat": "Tied to GNSS only at BOLG. At BLGN the scene is consistent with GNSS within about \u00b14.6 mm per year (95%), over about 13 months, not a tight check. At MEDI the scene reads +2.2 mm per year where GNSS reads -2.9, the opposite sign, from cells 3.8 to 4.4 km away. East of 11.45E values are relative only.",
   "relative_east_of": 11.45,
   "peak": {
     "cell_mm_yr": -23.5,
     "patch_mm_yr": -18.1
   },
+  "peak_range_mm_yr": [
+    17.0,
+    25.6
+  ],
+  "change_candidates": 17,
+  "change_candidates_held": 0,
   "robustness": {
     "reference moved 2 km": {
-      "same_verdict": 1036,
+      "same_verdict": 1019,
       "peak": {
         "cell_mm_yr": -23.6,
         "patch_mm_yr": -18.1
@@ -79,7 +89,7 @@
       "median_shift_mm_yr": -0.1
     },
     "reference at BOLO": {
-      "same_verdict": 825,
+      "same_verdict": 821,
       "peak": {
         "cell_mm_yr": -25.6,
         "patch_mm_yr": -20.2
@@ -87,7 +97,7 @@
       "median_shift_mm_yr": -2.1
     },
     "no ramp removal": {
-      "same_verdict": 996,
+      "same_verdict": 972,
       "peak": {
         "cell_mm_yr": -22.8,
         "patch_mm_yr": -17.0
@@ -95,7 +105,7 @@
       "median_shift_mm_yr": -0.05
     },
     "no pairs under 24 days": {
-      "same_verdict": 1000,
+      "same_verdict": 984,
       "peak": {
         "cell_mm_yr": -23.5,
         "patch_mm_yr": -17.8
@@ -103,7 +113,8 @@
       "median_shift_mm_yr": -0.11
     }
   },
-  "verdicts_held": 764,
+  "verdicts_held": 636,
+  "verdicts_tested": 888,
   "filters": {
     "cells": 6250,
     "low_coherence": 5103,

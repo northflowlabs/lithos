@@ -60,6 +60,7 @@ MAX_PAIR_DAYS = 60  # the longest pairs read; the 48 and 60 day ones bridge netw
 MAX_INTERPOLATE_DAYS = 60  # a date is only read across a gap this short
 STATION_RADIUS_DEG = 0.012  # about 1 km: the ground around the tie station
 NEAR_STATION_KM = 1.5  # scene cells within this speak for a station
+TIGHT_CHECK_MM_YR = 2.0  # a 95% interval wider than this is too loose to call a tight check
 EAST_CHECK = "MEDI"  # the station that decides whether the east of a scene can be trusted
 CHECK_RADIUS_KM = 4.5  # if none are, the nearest cells within this, flagged by their distance
 REFERENCE_MAX_HEIGHT_M = 120.0
@@ -90,7 +91,9 @@ class SceneSpec:
     check_stations: dict[str, tuple[float, float]]  # not used in the tie
     atmosphere: BBox  # ground with relief and little motion, for the height fit
     variants: tuple[Variant, ...] = ()  # the robustness test
-    relative_east_of: float | None = None  # past this longitude GNSS contradicts the datum
+    check_only: bool = False  # solved for its station checks, not published
+    # A judgement from the scene's pattern and one GNSS site: there is no station between.
+    relative_east_of: float | None = None
 
 
 SCENES = {
@@ -112,7 +115,25 @@ SCENES = {
             Variant("no ramp removal", remove_ramp=False),
             Variant("no pairs under 24 days", min_pair_days=24),
         ),
-    )
+    ),
+    # Widened to Modena for the GNSS checks in docs/coverage.md. Not published.
+    "wide": SceneSpec(
+        slug="wide",
+        name="Bologna to Modena",
+        bbox=BBox(10.90, 44.40, 11.70, 44.66),
+        ascending="117A_04454_131312",
+        descending="095D_04589_131313",
+        start=date(2021, 10, 1),
+        reference_station="BOLG",
+        reference_lonlat=(11.3568, 44.5002),
+        check_stations={
+            "MOPS": (10.9492, 44.6294),
+            "MODE": (10.9487, 44.6290),
+            "MEDI": (11.6468, 44.5200),
+        },
+        atmosphere=BBox(10.90, 44.40, 11.70, 44.48),
+        check_only=True,
+    ),
 }
 
 
@@ -435,6 +456,22 @@ def _km_between(lon_a: float, lat_a: float, lon_b: float, lat_b: float) -> float
     return float(np.hypot((lon_a - lon_b) * np.cos(np.radians(lat_a)), lat_a - lat_b) * 111.2)
 
 
+def _rate_with_interval(dates: list[date], y: np.ndarray) -> tuple[float, float]:
+    """Rate of a series with an annual term, and the 95% half-width of that rate, widened
+    for lag-1 autocorrelation. Over about a year the annual term and the rate trade off
+    against each other, and this interval shows it."""
+    t = np.array([(d - dates[0]).days for d in dates]) / stats.DAYS_PER_YEAR
+    design = np.column_stack([t, np.ones_like(t), np.sin(2 * np.pi * t), np.cos(2 * np.pi * t)])
+    coef = np.linalg.lstsq(design, y, rcond=None)[0]
+    residual = y - design @ coef
+    dof = max(y.size - design.shape[1], 1)
+    variance = float(residual @ residual) / dof
+    r = float(residual[:-1] @ residual[1:]) / max(float(residual @ residual), 1e-12)
+    r = min(max(r, 0.0), 0.95)
+    sigma = np.sqrt(np.linalg.inv(design.T @ design)[0, 0] * variance * (1 + r) / (1 - r))
+    return float(coef[0]), float(1.96 * sigma)
+
+
 def _station_checks(
     spec: SceneSpec, epochs: list[date], points: list[dict], series: dict
 ) -> list[dict]:
@@ -459,6 +496,7 @@ def _station_checks(
         checks.append(entry)
         days, up = gnss.parse_days(gnss.fetch_text(station))
         cells, km = around(lon, lat)
+        cells = cells & ~ref_cells  # a cell shared with the tie would cancel in the difference
         if not cells.any():
             entry["note"] = "no scene cells near the station"
             continue
@@ -476,6 +514,7 @@ def _station_checks(
             continue
         scene_rate = _secular(used, scene_dd[ok]).slope_mm_yr
         gnss_rate = _secular(used, gnss_dd[ok]).slope_mm_yr
+        misfit, interval = _rate_with_interval(used, scene_dd[ok] - gnss_dd[ok])
         entry.update(
             km=[round(float(km[cells].min()), 1), round(float(km[cells].max()), 1)],
             cells=int(cells.sum()),
@@ -484,26 +523,39 @@ def _station_checks(
             last=used[-1].isoformat(),
             scene_minus_tie=round(scene_rate, 2),
             gnss_minus_tie=round(gnss_rate, 2),
-            difference=round(scene_rate - gnss_rate, 2),
+            months=round((used[-1] - used[0]).days / 30.4),
+            difference=round(misfit, 2),
+            interval_95=round(interval, 1),
         )
     return checks
 
 
+def _same_sign(a: float, b: float) -> bool:
+    return (a < 0) == (b < 0)
+
+
 def _caveat(spec: SceneSpec, checks: list[dict], tie_rate: float) -> str:
-    """The one sentence that travels with the data, built from the station checks."""
+    """The sentence that travels with the data, worded from the station checks. It says only
+    what the numbers carry: a check whose interval spans zero is called consistent, not good."""
     parts = [f"Tied to GNSS only at {spec.reference_station}."]
     for c in checks:
         if "difference" not in c:
             continue
-        if c["station"] == EAST_CHECK:
-            scene = tie_rate + c["scene_minus_tie"]
-            station = tie_rate + c["gnss_minus_tie"]
+        scene = tie_rate + c["scene_minus_tie"]
+        station = tie_rate + c["gnss_minus_tie"]
+        consistent = abs(c["difference"]) <= c["interval_95"]
+        if consistent:
+            weak = ", not a tight check" if c["interval_95"] > TIGHT_CHECK_MM_YR else ""
             parts.append(
-                f"At {c['station']} the scene reads {scene:+.1f} mm per year where GNSS reads "
-                f"{station:+.1f}, the opposite sign, from cells {c['km'][0]} to {c['km'][1]} km away."
+                f"At {c['station']} the scene is consistent with GNSS within about "
+                f"±{c['interval_95']:.1f} mm per year (95%), over about {c['months']} months{weak}."
             )
         else:
-            parts.append(f"At {c['station']} they agree within {abs(c['difference']):.1f} mm per year.")
+            sign = ", the opposite sign" if not _same_sign(scene, station) else ""
+            parts.append(
+                f"At {c['station']} the scene reads {scene:+.1f} mm per year where GNSS reads "
+                f"{station:+.1f}{sign}, from cells {c['km'][0]} to {c['km'][1]} km away."
+            )
     if spec.relative_east_of is not None:
         parts.append(f"East of {spec.relative_east_of}E values are relative only.")
     return " ".join(parts)
@@ -521,6 +573,13 @@ def _peak(points: list[dict]) -> dict:
         if near.sum() >= 6:
             patch = min(patch, float(np.median(velocity[near])))
     return {"cell_mm_yr": round(float(velocity.min()), 1), "patch_mm_yr": round(patch, 1)}
+
+
+def _peak_range(points: list[dict], robustness: dict[str, dict]) -> list[float]:
+    """Slowest and fastest reading of the peak: patch or cell, across the variants."""
+    peaks = [_peak(points), *(v["peak"] for v in robustness.values())]
+    values = [abs(x) for peak in peaks for x in peak.values()]
+    return [min(values), max(values)]
 
 
 def _class_of(
@@ -662,6 +721,7 @@ def combine(
     counts.update(reasons)
 
     # The robustness test: a verdict stands only if every variant gives the same class.
+    # Change classes are counted, because the test is what decides whether any is published.
     held = np.ones(len(points), dtype=bool)
     robustness: dict[str, dict] = {}
     base_classes = [
@@ -703,16 +763,26 @@ def combine(
     if variants:
         for p, ok in zip(points, held, strict=True):
             p["verdict_robust"] = bool(ok)
+    calm = (AnomalyType.STABLE, AnomalyType.STEADY_MOTION, AnomalyType.INCONCLUSIVE)
+    east_of = spec.relative_east_of if spec.relative_east_of is not None else 999.0
+    candidates = [
+        ok
+        for p, cls, ok in zip(points, base_classes, held, strict=True)
+        if cls not in calm and p["lon"] <= east_of
+    ]
 
     start, end = epochs[0], epochs[-1]
     checks = _station_checks(spec, epochs, points, series)
     caveat = _caveat(spec, checks, tie.rate_mm_yr)
     east_check = next((c for c in checks if c["station"] == EAST_CHECK and "difference" in c), None)
     if spec.relative_east_of is not None and east_check:
+        scene_rate = tie.rate_mm_yr + east_check["scene_minus_tie"]
+        station_rate = tie.rate_mm_yr + east_check["gnss_minus_tie"]
+        sign = "" if _same_sign(scene_rate, station_rate) else ", with the opposite sign"
         note = (
             f"GNSS station {EAST_CHECK}, east of here, disagrees by about "
-            f"{abs(east_check['difference']):.0f} mm per year, with the opposite sign, so do not "
-            "read this as absolute motion."
+            f"{abs(east_check['difference']):.0f} mm per year{sign}, so do not read this as "
+            "absolute motion."
         )
         for p in points:
             if p["lon"] > spec.relative_east_of:
@@ -736,8 +806,16 @@ def combine(
         "caveat": caveat,
         "relative_east_of": spec.relative_east_of,
         "peak": _peak(points),
+        "peak_range_mm_yr": _peak_range(points, robustness),
+        "change_candidates": len(candidates),
+        "change_candidates_held": int(sum(candidates)),
         "robustness": robustness,
-        "verdicts_held": int(held.sum()) if variants else None,
+        "verdicts_held": (
+            sum(1 for p in points if p.get("verdict_robust") and "datum_note" not in p)
+            if variants
+            else None
+        ),
+        "verdicts_tested": sum(1 for p in points if "datum_note" not in p),
         "filters": counts,
         "note": (
             f"Measured with Sentinel-1 from frames {asc.frame} and {desc.frame}, COMET LiCSAR "
@@ -797,7 +875,11 @@ def build(spec: SceneSpec) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build a scene from LiCSAR interferograms.")
     parser.add_argument("slug", choices=sorted(SCENES))
-    scene = build(SCENES[parser.parse_args().slug])
+    spec = SCENES[parser.parse_args().slug]
+    scene = build(spec)
+    if spec.check_only:
+        print(json.dumps(scene["meta"]["checks"], indent=2))
+        return
     out = write(scene)
     print(f"{scene['meta']['point_count']} points, {scene['meta']['epochs']} epochs: {out}")
 

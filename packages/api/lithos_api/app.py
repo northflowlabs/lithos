@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
+from lithos_ingest import gnss
 from strawberry.fastapi import GraphQLRouter
 
 from lithos_api import serialize
@@ -50,6 +51,7 @@ def _export_notes() -> list[str]:
     """Credits and the scene's caveat, for anything that leaves as a file."""
     notes = [m.attribution for m in get_catalog().source_metas() if m.key == "licsar"]
     notes += [m.license for m in get_catalog().source_metas() if m.key == "licsar"]
+    notes.append(gnss.CREDIT)
     for source in get_catalog().sources:
         scene = getattr(source, "hero", None)
         if scene and scene.get("caveat"):
@@ -169,11 +171,11 @@ def create_app() -> FastAPI:
             raise HTTPException(404, f"No time series for point '{point_id}'")
         if format == "csv":
             return PlainTextResponse(
-                serialize.timeseries_csv(ts, _export_notes()),
+                serialize.timeseries_csv(ts, _export_notes(), get_catalog().get_point(point_id)),
                 media_type="text/csv",
                 headers={"Content-Disposition": f'attachment; filename="{point_id}.csv"'},
             )
-        return serialize.timeseries_dict(ts)
+        return serialize.timeseries_dict(ts, get_catalog().get_point(point_id))
 
     @app.get(f"{prefix}/points/{{point_id}}/verdict")
     def point_verdict(point_id: str) -> dict:
@@ -215,17 +217,23 @@ def create_app() -> FastAPI:
     # --- AOI scan ----------------------------------------------------------------
     @app.post(f"{prefix}/aoi/scan")
     def aoi_scan(geometry: dict = Body(..., embed=True)) -> dict:  # noqa: B008  FastAPI's way to declare a body field
-        """Scan a drawn polygon: aggregate stats, ranked points, emerging clusters."""
+        """Scan a drawn polygon: aggregate stats, ranked points, hotspots."""
         if geometry.get("type") != "Polygon":
             raise HTTPException(400, "geometry must be a GeoJSON Polygon")
         coords = geometry.get("coordinates")
         if not coords or not coords[0]:
             raise HTTPException(400, "polygon has no coordinates")
-        minlon, minlat, maxlon, maxlat = ring_bbox(coords[0])
+        try:
+            minlon, minlat, maxlon, maxlat = ring_bbox(coords[0])
+        except (TypeError, IndexError, KeyError) as exc:
+            raise HTTPException(400, "polygon coordinates must be [lon, lat] pairs") from exc
         cat = get_catalog()
         bbox = parse_bbox(f"{minlon},{minlat},{maxlon},{maxlat}")
         candidates = cat.query_points(bbox, filters=build_filters(None, None, 20000))
-        inside = [p for p in candidates if point_in_polygon(p.lon, p.lat, coords)]
+        try:
+            inside = [p for p in candidates if point_in_polygon(p.lon, p.lat, coords)]
+        except (TypeError, IndexError, KeyError) as exc:
+            raise HTTPException(400, "polygon coordinates must be [lon, lat] pairs") from exc
         if not inside:
             return {
                 "point_count": 0,

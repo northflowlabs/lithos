@@ -43,8 +43,14 @@ Interferograms up to 60 days apart are averaged to about 400 m. For each one, a 
 ground south of the city removes the height-dependent atmosphere and the east-west ramp. Each is
 then tied to the ground around GNSS station BOLG. Pairs that break phase closure or disagree with
 the network are dropped, and the rest are inverted into a series for each geometry. The two are
-combined into vertical and east motion on the dates they share, and BOLG's measured rate, about
--3 mm per year, fixes the vertical datum. The east motion stays relative to BOLG.
+combined into vertical and east motion on the ascending frame's dates, with the descending series
+interpolated onto them, and BOLG's measured rate, about -3 mm per year, fixes the vertical datum.
+The east motion stays relative to BOLG.
+
+BOLG changed receiver on 2023-06-28, inside the window. The tie fits no step there: the Nevada
+Geodetic Laboratory lists none, and a step fitted over 2019 to 2026 comes to about 0.1 mm. Fitted
+over the scene's window alone it would be about 2 mm and the rate about -4.3, so that much of the
+tie rests on the longer record.
 
 Left out: cells with mean coherence under 0.4, which removes most farmland; poor network fit;
 ground above 250 m; too few dates; and cells that disagree with their neighbours. The counts are
@@ -54,44 +60,38 @@ in `filters` in `data/scenes/bologna/meta.json`.
 
 Every point's verdict is recomputed four more ways at build time: the reference moved 2 km, the
 reference at the former BOLO site, no ramp removal, and no pairs under 24 days. A verdict that
-changes class in any of them is published as inconclusive. In this build no change of behaviour
-survived, so none is published: the scene shows trends, not turning points. About 760 of 1,069
-verdicts held. "Stable" means under 2 mm per year on this datum, and moving the reference to BOLO
-shifts the whole scene by about 2 mm per year, so it is a statement about the datum as well as the
-ground.
+changes class in any of them is published as inconclusive. West of 11.45E, 636 of 888 verdicts
+held. The change test found 17 candidate changes of behaviour there and none survived, so none is
+published: the scene shows trends, not turning points. "Stable" means under 2 mm per year on this
+datum, and moving the reference to BOLO shifts the whole scene by about 2 mm per year, so it says
+something about the datum as well as the ground.
 
 ### How far to trust it
 
-- **Fastest subsidence: about 17 to 24 mm per year**, on the plain northwest of the city. The range
-  has four causes: a single 400 m cell against the median of the worst 1.5 km patch (about 23 and
-  18), the reference location (about 2), ramp removal (about 1), and the seasonal term, which is
-  now removed from every rate because the window runs from autumn to spring.
-- **East of 11.45E the values are relative only.** The rates there are shown faded and carry no
-  motion verdict. At MEDI the scene reads about +2 mm per year where GNSS reads about -3, the
-  opposite sign. The nearest usable cells are 3.8 to 4.4 km from the station.
-- **Near the tie the scene agrees with GNSS.** At BLGN, 1.2 km from BOLG, the same-date double
-  difference agrees within 0.3 mm per year, over the 12 months the records share.
+- **Fastest subsidence: about 17 to 26 mm per year**, on the plain northwest of the city. The range
+  comes from reading one 400 m cell or the worst 1.5 km patch, the reference location, and ramp
+  removal. The choice of pairs moves it too.
+- **East of 11.45E the values are relative only.** They are faded and carry no motion verdict. The
+  line is a judgement from the scene's pattern and one GNSS site, as no station lies between BLGN
+  and MEDI. At MEDI the scene and GNSS disagree in sign, from cells 3.8 to 4.4 km from the station.
+- **Near the tie the check is weak.** At BLGN, 1.3 km from BOLG, the scene is consistent with GNSS
+  within about ±4.6 mm per year (95%), over about 13 months. That is not a tight check.
 - A trend's "±" is the 95% interval of the fit. It reflects scatter about the trend, not remaining
-  atmosphere, the reference or the tie. The tie's own 1 sigma, about 0.5 mm per year, allows for
-  correlated GNSS noise, but not for other long-period noise.
+  atmosphere, the reference or the tie.
 - The scene has not been compared with EGMS.
+
+`checks` and `caveat` in `meta.json` hold the current figures; the caveat is worded from them.
 
 ### What was tried for the east
 
-A plane through the GNSS stations was the natural correction, and it was not applied. With the
-scene widened to Modena, the error against GNSS is about -3 to -1 mm per year at MOPS and MODE, near
-zero at BOLG, and +7 at MEDI. A plane through those leaves about 2 mm per year at its own stations,
-and the error is not linear: it steps up between 11.45E and 11.5E, where the coherent ground breaks
-into islands separated by farmland. That points to the islands not being tied to the city, which a
-plane cannot fix, and only one site constrains the east.
+A plane through the GNSS stations was tried and not applied. Run `python -m lithos_ingest.scene
+wide` to repeat it: it widens the scene to Modena and prints the same-date checks against BOLG. The
+scene minus GNSS is -3.1 ± 3.2 mm per year at MOPS, 0.0 ± 3.3 at MODE, on the same site, and
++5.8 ± 1.9 at MEDI (95%). Only MEDI differs clearly, so a plane would rest on one site.
 
-The cause of the rising cells is unproven. Short-pair phase bias over fields was the first
-suspect, so the 85 longer pairs (72 to 348 days) were compared with the short network. The
-difference does not grow as coherence falls in a consistent way: ascending 3.9 to 1.9 mm per year
-from low to high coherence, descending 0.8 to 1.9. And the east-west contrast in vertical rate is
-the same in both, about 4.6 mm per year. So bias is not shown, and it does not explain the east.
-Long pairs read about 3.5 mm per year lower than short ones everywhere, which is also unexplained.
-With only 85 pairs that is a weak test.
+The cause of the east's rising values is not known. A test against 85 longer pairs (72 to 348
+days) for short-pair phase bias was inconclusive: those pairs cluster by season and their dates do
+not match the short network's.
 
 ## Coverage expands over time
 

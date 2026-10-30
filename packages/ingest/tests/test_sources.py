@@ -19,7 +19,7 @@ from lithos_ingest import gnss
 from lithos_ingest import licsar_archive as archive
 from lithos_ingest.base import BBox, PointFilters, data_dir
 from lithos_ingest.catalog import LithosCatalog
-from lithos_ingest.scene import SCENES, _at, _caveat, _peak
+from lithos_ingest.scene import SCENES, _at, _caveat, _peak, _rate_with_interval
 from lithos_ingest.sources.egms import EgmsSource, parse_ortho_csv
 from lithos_ingest.sources.licsar import LicsarSource
 
@@ -110,11 +110,54 @@ def test_peak_and_caveat_read_their_inputs():
     assert _peak(points)["cell_mm_yr"] == -17.0
     spec = SCENES["bologna"]
     checks = [
-        {"station": "BLGN", "difference": 0.3},
-        {"station": "MEDI", "difference": 5.0, "scene_minus_tie": 5.0, "gnss_minus_tie": 0.0, "km": [3.8, 4.4]},
+        {
+            "station": "BLGN",
+            "difference": 1.0,
+            "interval_95": 4.6,
+            "months": 13,
+            "scene_minus_tie": -3.0,
+            "gnss_minus_tie": -3.0,
+            "km": [0.3, 1.4],
+        },
+        {
+            "station": "MEDI",
+            "difference": 5.0,
+            "interval_95": 1.6,
+            "months": 30,
+            "scene_minus_tie": 5.0,
+            "gnss_minus_tie": 0.0,
+            "km": [3.8, 4.4],
+        },
     ]
     text = _caveat(spec, checks, -3.0)
-    assert "+2.0" in text and "-3.0" in text and "relative only" in text
+    assert "+2.0" in text and "-3.0" in text and "opposite sign" in text
+    assert "within about ±4.6" in text and "not a tight check" in text
+    assert "agree" not in text
+
+
+def test_the_caveat_only_says_opposite_sign_when_it_is():
+    checks = [
+        {
+            "station": "MEDI",
+            "difference": 5.0,
+            "interval_95": 1.0,
+            "months": 30,
+            "scene_minus_tie": 2.0,
+            "gnss_minus_tie": -3.0,
+            "km": [3.8, 4.4],
+        }
+    ]
+    assert "opposite sign" not in _caveat(SCENES["bologna"], checks, -3.0)
+
+
+def test_a_short_check_has_a_wide_interval():
+    rng = np.random.default_rng(1)
+    start = date(2022, 1, 1)
+    short = [start + timedelta(days=12 * i) for i in range(32)]
+    long = [start + timedelta(days=12 * i) for i in range(150)]
+    _, wide = _rate_with_interval(short, rng.normal(0, 2, 32))
+    _, narrow = _rate_with_interval(long, rng.normal(0, 2, 150))
+    assert wide > 3 * narrow
 
 
 def test_a_stable_verdict_names_its_datum():

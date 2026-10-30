@@ -115,7 +115,7 @@ class Reader:
                 data = src.read(1, window=window)
                 t = src.window_transform(window)
                 return data, (t.c, t.f, t.a, t.e)
-        except RasterioIOError as exc:
-            if "404" in str(exc):
+        except RasterioIOError:
+            if path.startswith("/vsicurl/") and httpx.head(url, timeout=60.0).status_code == 404:
                 return None
             raise

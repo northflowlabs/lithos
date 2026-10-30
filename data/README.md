@@ -14,8 +14,7 @@ The Apache-2.0 licence of LITHOS covers the code. The data has its own terms.
 - **GNSS.** Rates are fitted to daily positions from the Nevada Geodetic Laboratory. Cite
   Blewitt, G., W. C. Hammond, and C. Kreemer (2018), Harnessing the GPS data explosion for
   interdisciplinary science, Eos, 99, doi:10.1029/2018EO104623, and the provider of each
-  station's data: BOLG, RINEX header "GEOFISICA BOLOGNA", institution not confirmed; BLGN, INGV;
-  MEDI, ASI Telespazio.
+  station's data: BOLG, University of Bologna; BLGN, INGV; MEDI, Agenzia Spaziale Italiana.
 
 `packages/ingest/lithos_ingest/data/licsar_frames.json` lists frame footprints and dates from
 the same archive. The recordings in `packages/ingest/tests/fixtures/` carry their own notes.

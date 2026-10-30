@@ -17,14 +17,19 @@ import numpy as np
 TENV3_URL = "https://geodesy.unr.edu/gps_timeseries/IGS20/tenv3/IGS20/{station}.tenv3"
 
 
-# Who runs each station. BOLG is as its RINEX header reads; the institution is unconfirmed.
+# Who runs each station: BOLG and MEDI per their EPN records, BLGN per its RINEX header.
 PROVIDERS = {
-    "BOLG": 'RINEX header "GEOFISICA BOLOGNA"',
+    "BOLG": "University of Bologna (UNIBO)",
     "BLGN": "INGV",
-    "MEDI": "ASI Telespazio",
-    "MSEL": "Unknown",
-    "MOPS": "Unknown",
+    "MEDI": "Agenzia Spaziale Italiana (ASI)",
+    "MODE": "not confirmed",
+    "MOPS": "not confirmed",
 }
+
+CREDIT = (
+    "GNSS: Blewitt, G., W. C. Hammond, and C. Kreemer (2018), Eos, 99, "
+    "doi:10.1029/2018EO104623. BOLG, University of Bologna; BLGN, INGV; MEDI, ASI."
+)
 
 
 @dataclass(frozen=True)

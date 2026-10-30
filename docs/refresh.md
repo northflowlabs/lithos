@@ -38,7 +38,10 @@ pull requests". It has no schedule. To add one after a few runs by hand, add thi
 - `window` and `last_epoch` in `data/scenes/<slug>/meta.json`: the window is what was solved.
 - `checks` in the same file: same-date double differences against GNSS stations it was not tied
   to. `caveat` is built from them and travels with the data.
-- `robustness` and `verdicts_held`: how many verdicts survived each variant.
+- `robustness`, `verdicts_held` and `change_candidates`: how many verdicts survived each variant.
+
+A pull request opened by the workflow's token does not trigger CI. Close and reopen it, or run CI by
+hand, before merging.
 - `filters`: how many cells each filter removed, against the previous build.
 
 If COMET stops publishing one of a scene's frames, the window stops moving. Pick another frame

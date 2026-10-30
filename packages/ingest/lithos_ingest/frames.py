@@ -90,7 +90,9 @@ def crawl(workers: int = 6) -> dict:
 def main() -> None:
     index = crawl()
     FRAME_INDEX.parent.mkdir(parents=True, exist_ok=True)
-    FRAME_INDEX.write_text(json.dumps(index, separators=(",", ":")), encoding="utf-8")
+    # One line per key, so the crawl date can change without touching the line of frames.
+    lines = [f"{json.dumps(k)}:{json.dumps(v, separators=(',', ':'))}" for k, v in index.items()]
+    FRAME_INDEX.write_text("{" + ",\n".join(lines) + "}\n", encoding="utf-8")
     print(f"{len(index['frames'])} frames written to {FRAME_INDEX}")
 
 

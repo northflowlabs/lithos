@@ -11,7 +11,7 @@ LITHOS is an open source ground motion map that shows how the ground rises and s
 
 <img src="docs/assets/hero.png" alt="LITHOS map of Bologna, red where the plain north of the city sinks" width="820"/>
 
-<sub>Bologna, measured from Sentinel-1, October 2021 to April 2024, tied to GNSS station BOLG: about 17 to 24 mm per year of subsidence at the fastest, on the plain northwest of the city. Red is sinking, blue is rising. East of 11.45E, where the points are less certain, the scene reads +2 mm per year at GNSS station MEDI against -3 from GNSS, the opposite sign, so those values are relative only. LiCSAR contains modified Copernicus Sentinel data 2021 to 2024 analysed by the Centre for the Observation and Modelling of Earthquakes, Volcanoes and Tectonics (COMET). LiCSAR uses JASMIN, the UK's collaborative data analysis environment (http://jasmin.ac.uk). [Open Government Licence v3.0](http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/).</sub>
+<sub>Bologna, measured from Sentinel-1, October 2021 to April 2024, tied to GNSS station BOLG: about 17 to 26 mm per year of subsidence at the fastest, on the plain northwest of the city. Red is sinking, blue is rising. East of 11.45E the scene and GNSS station MEDI disagree in sign, so those values are relative only. LiCSAR contains modified Copernicus Sentinel data 2021 to 2024 analysed by the Centre for the Observation and Modelling of Earthquakes, Volcanoes and Tectonics (COMET). LiCSAR uses JASMIN, the UK's collaborative data analysis environment (http://jasmin.ac.uk). [Open Government Licence v3.0](http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/).</sub>
 
 ## What it does
 
@@ -86,7 +86,7 @@ Every source normalises into one schema, so new coverage changes nothing downstr
 Credit these sources in any work you publish with LITHOS:
 
 - **COMET LiCSAR.** LiCSAR contains modified Copernicus Sentinel data [years used] analysed by the Centre for the Observation and Modelling of Earthquakes, Volcanoes and Tectonics (COMET). LiCSAR uses JASMIN, the UK's collaborative data analysis environment (<http://jasmin.ac.uk>). UK Open Government Licence v3.0. Cite Lazecky, M.; Maghsoudi, Y. (2022): LiCSAR interferometry products, NERC EDS Centre for Environmental Data Analysis.
-- **Nevada Geodetic Laboratory**, for the GNSS tie. Cite Blewitt et al. (2018), Eos 99, and the station's data provider.
+- **Nevada Geodetic Laboratory**, for the GNSS tie. Cite Blewitt et al. (2018), Eos 99, and the station's provider: BOLG, University of Bologna; BLGN, INGV; MEDI, ASI.
 - **European Ground Motion Service (EGMS)**, Copernicus Land Monitoring Service, when you use EGMS tiles. Contains modified Copernicus data.
 
 LITHOS fetches LiCSAR products over the network and contains no LiCSAR or LiCSBAS code. Its time-series solver is written from the published small-baseline method. The citation text and the details are in [docs/attribution.md](docs/attribution.md) and [docs/licensing.md](docs/licensing.md).

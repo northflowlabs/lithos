@@ -83,9 +83,16 @@ def coverage_feature_collection(cells: list[CoverageCell]) -> dict:
     return {"type": "FeatureCollection", "features": feats}
 
 
-def timeseries_dict(ts: TimeSeries) -> dict:
+def _where(point: MeasurementPoint | None) -> dict:
+    if point is None:
+        return {}
+    return {"lon": point.lon, "lat": point.lat, "relative_only": point.datum_note is not None}
+
+
+def timeseries_dict(ts: TimeSeries, point: MeasurementPoint | None = None) -> dict:
     return {
         "point_id": ts.point_id,
+        **_where(point),
         "samples": [
             {
                 "date": s.date.isoformat(),
@@ -97,8 +104,13 @@ def timeseries_dict(ts: TimeSeries) -> dict:
     }
 
 
-def timeseries_csv(ts: TimeSeries, notes: list[str] | None = None) -> str:
+def timeseries_csv(
+    ts: TimeSeries, notes: list[str] | None = None, point: MeasurementPoint | None = None
+) -> str:
     buf = io.StringIO()
+    where = _where(point)
+    if where:
+        buf.write(f"# point {ts.point_id}, " + ", ".join(f"{k}={v}" for k, v in where.items()) + "\n")
     writer = csv.writer(buf)
     for line in notes or ():
         buf.write(f"# {line}\n")

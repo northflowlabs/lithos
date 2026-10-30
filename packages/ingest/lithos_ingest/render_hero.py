@@ -11,6 +11,7 @@ import json
 import textwrap
 from pathlib import Path
 
+from lithos_ingest import gnss
 from lithos_ingest.base import data_dir
 from lithos_ingest.sources.licsar import HERO_SCENE
 
@@ -59,7 +60,7 @@ def render(out_path: Path | None = None) -> Path:
         "LiCSAR contains modified Copernicus Sentinel data 2021 to 2024 analysed by the Centre for "
         "the Observation and Modelling of Earthquakes, Volcanoes and Tectonics (COMET). LiCSAR uses "
         "JASMIN, the UK's collaborative data analysis environment (http://jasmin.ac.uk). Open "
-        "Government Licence v3.0."
+        "Government Licence v3.0. " + gnss.CREDIT
     )
     fig.text(
         0.02,

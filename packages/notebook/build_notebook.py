@@ -84,7 +84,7 @@ print("Strongest subsidence:", min(p.best_velocity for p in points if p.best_vel
         MD,
         """## 3. Map the velocity field
 
-Blue rises, red sinks. The plain north of the city is sinking; the city centre barely moves.
+Blue rises, red sinks. Faded points are relative only. The plain northwest of the city sinks.
 """,
     ),
     cell(
@@ -94,13 +94,18 @@ Blue rises, red sinks. The plain north of the city is sinking; the city centre b
 lons = [p.lon for p in points]
 lats = [p.lat for p in points]
 vels = [p.best_velocity or 0.0 for p in points]
+fade = [0.25 if p.datum_note else 1.0 for p in points]  # relative only: not absolute motion
 
 fig, ax = plt.subplots(figsize=(7, 5))
-sc = ax.scatter(lons, lats, c=vels, cmap="RdBu", vmin=-20, vmax=20, s=12)
+sc = ax.scatter(lons, lats, c=vels, alpha=fade, cmap="RdBu", vmin=-20, vmax=20, s=12)
 plt.colorbar(sc, label="Vertical velocity (mm/yr)")
 ax.set_title("LITHOS: Bologna ground motion")
 ax.set_xlabel("Longitude"); ax.set_ylabel("Latitude")
 plt.show()
+
+from lithos_ingest.sources.licsar import LicsarSource
+
+print(LicsarSource().hero["caveat"])
 """,
     ),
     cell(
@@ -158,6 +163,7 @@ It has no time term, so it shows where the ground differs, not when that began.
 
 result = scan_area(points, cluster_radius_deg=0.01)
 print(f"Points: {result.point_count}  Changed behaviour: {result.anomalous_count}")
+print(f"Left out as relative only: {result.left_out_count}")
 print(f"Mean velocity: {result.mean_velocity_mm_yr:.1f} mm/yr")
 print(f"Max subsidence: {result.max_subsidence_mm_yr:.1f} mm/yr")
 for c in result.cluster_flags:

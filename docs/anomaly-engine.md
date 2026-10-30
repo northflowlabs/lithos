@@ -21,11 +21,11 @@ For each measurement point with enough history (at least 12 epochs):
 4. **Classification**: comparing the slope before and after the strongest change-point
    yields: accelerating subsidence or uplift, new-onset subsidence or uplift, slowing, a change
    of direction, stabilising, steady motion, stable, or inconclusive.
+5. **Confidence gating**: coherence/quality scales the confidence down so low-quality
+   points are not over-flagged.
 6. **Robustness test** (scene builds): the scene is solved four more ways: the reference moved
    2 km, the reference at the old BOLO site, no ramp removal, and no pairs under 24 days. A
    verdict that changes class in any of them is published as inconclusive.
-5. **Confidence gating**: coherence/quality scales the confidence down so low-quality
-   points are not over-flagged.
 
 ### Output contract
 

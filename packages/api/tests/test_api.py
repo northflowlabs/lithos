@@ -56,6 +56,32 @@ def test_time_filters_are_refused_not_ignored():
     assert r.status_code == 400
 
 
+def test_an_area_of_relative_points_has_no_numbers():
+    polygon = {
+        "type": "Polygon",
+        "coordinates": [[[11.46, 44.40], [11.68, 44.40], [11.68, 44.60], [11.46, 44.60], [11.46, 44.40]]],
+    }
+    body = client.post("/v1/aoi/scan", json={"geometry": polygon}).json()
+    assert body["point_count"] > 100
+    assert body["left_out_count"] == body["point_count"]
+    assert body["mean_velocity_mm_yr"] is None and body["max_uplift_mm_yr"] is None
+    assert body["top_points"] == []
+    assert body["note"]
+
+
+def test_malformed_polygon_is_refused():
+    r = client.post("/v1/aoi/scan", json={"geometry": {"type": "Polygon", "coordinates": [[1, 2, 3]]}})
+    assert r.status_code == 400
+
+
+def test_timeseries_says_where_and_how_far_to_trust_it():
+    east = client.get("/v1/points?bbox=11.5,44.4,11.6,44.6&limit=1").json()["features"][0]
+    pid = east["properties"]["id"]
+    body = client.get(f"/v1/points/{pid}/timeseries").json()
+    assert body["relative_only"] is True and "lon" in body
+    assert "relative_only=True" in client.get(f"/v1/points/{pid}/timeseries?format=csv").text
+
+
 def test_bbox_too_large_rejected():
     r = client.get("/v1/points?bbox=-10,-10,30,30")
     assert r.status_code == 413
@@ -74,7 +100,9 @@ def test_timeseries_json_and_csv():
     assert len(rj.json()["samples"]) > 40
     rc = client.get(f"/v1/points/{pid}/timeseries?format=csv")
     assert rc.status_code == 200
-    assert rc.text.startswith("# LiCSAR contains modified Copernicus Sentinel data")
+    assert rc.text.startswith(f"# point {pid}, lon=")
+    assert "# LiCSAR contains modified Copernicus Sentinel data" in rc.text
+    assert "Blewitt" in rc.text
     assert "date,displacement_mm" in rc.text
     assert "\n# " in rc.text
 
