@@ -12,6 +12,12 @@ export const MOTION_STOPS: { v: number; color: string }[] = [
   { v: 20, color: "#2166ac" }, // strong uplift
 ];
 
+// Where a value sits along the ramp, from 0 to 1.
+export function rampOffset(v: number): number {
+  const lo = MOTION_STOPS[0].v;
+  return (v - lo) / (MOTION_STOPS[MOTION_STOPS.length - 1].v - lo);
+}
+
 // A MapLibre "interpolate" colour expression keyed on a numeric property.
 export function velocityColorExpression(property: string): unknown {
   const stops: unknown[] = [];

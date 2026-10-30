@@ -13,7 +13,7 @@ import { PointList } from "@/components/PointList";
 import PointPanel from "@/components/PointPanel";
 import { SearchBox } from "@/components/SearchBox";
 import { api } from "@/lib/api";
-import { MOTION_STOPS } from "@/lib/colormap";
+import { MOTION_STOPS, rampOffset } from "@/lib/colormap";
 import { ESRI_CREDIT, GNSS_CREDIT, LICSAR_ACK, OGL_URL } from "@/lib/credits";
 import { DEFAULT_LAYERS, decodeState, encodeState, writeHash } from "@/lib/permalink";
 import type { AoiScanResult, PointProperties } from "@/lib/types";
@@ -150,6 +150,7 @@ export default function Page() {
       `Licence: Open Government Licence v3.0, ${OGL_URL}`,
       GNSS_CREDIT,
       `Tiles: ${ESRI_CREDIT}. Map: LITHOS.`,
+      "Faded points are relative only.",
       ...(hero.data?.caveat ? [hero.data.caveat] : []),
     ].flatMap((text) => wrap(ctx, text, canvas.width - 16 * scale));
     const height = (lines.length + 0.6) * size * 1.3;
@@ -165,7 +166,7 @@ export default function Page() {
     ctx.fillStyle = "rgba(11,14,18,0.8)";
     ctx.fillRect(0, 0, barWidth + 16 * scale, 42 * scale);
     const ramp = ctx.createLinearGradient(barX, 0, barX + barWidth, 0);
-    MOTION_STOPS.forEach((stop) => ramp.addColorStop((stop.v + 20) / 40, stop.color));
+    MOTION_STOPS.forEach((stop) => ramp.addColorStop(rampOffset(stop.v), stop.color));
     ctx.fillStyle = ramp;
     ctx.fillRect(barX, barY, barWidth, 8 * scale);
     ctx.fillStyle = "#f6f4ef";

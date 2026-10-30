@@ -1,17 +1,18 @@
 "use client";
 
-import { MOTION_STOPS } from "@/lib/colormap";
+import { MOTION_STOPS, rampOffset } from "@/lib/colormap";
 
 // Velocity ramp legend, colourblind-safe. Always visible so the map is readable at a glance.
 export function Legend({ coverageVisible, caveat }: { coverageVisible: boolean; caveat?: string | null }) {
-  const gradient = `linear-gradient(to right, ${MOTION_STOPS.map((s) => s.color).join(", ")})`;
+  const stops = MOTION_STOPS.map((s) => `${s.color} ${rampOffset(s.v) * 100}%`);
+  const gradient = `linear-gradient(to right, ${stops.join(", ")})`;
   return (
     <div className="absolute bottom-16 left-4 z-10 sm:bottom-10 rounded-md bg-ink-900/85 backdrop-blur px-3 py-2.5 border border-ink-700 text-[10px] text-ink-200 w-[240px] max-w-[calc(100vw-2rem)]">
       <div className="uppercase tracking-widest text-ink-200 mb-1">Vertical velocity (mm/yr)</div>
       <div className="h-2.5 rounded" style={{ background: gradient }} />
-      <div className="flex justify-between mt-1">
+      <div className="relative flex justify-between mt-1">
         <span>-20 sinking</span>
-        <span>0</span>
+        <span className="absolute left-1/2 -translate-x-1/2">0</span>
         <span>+20 rising</span>
       </div>
       <p className="mt-1 leading-snug">Faded points are relative only.</p>
