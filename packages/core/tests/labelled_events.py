@@ -1,11 +1,9 @@
-"""Synthetic labelled ground-motion series.
+"""Labelled ground-motion series with a known answer, for the regression suite only.
 
-Used by the anomaly-engine regression suite to prove the engine catches known
-behaviours and does not cry wolf on noise, and by the ingest layer to build a
-deterministic hero scene that renders offline. Every generator returns a
-MeasurementPoint with a known ground truth.
-
-Determinism: a seeded numpy Generator is passed in so fixtures are reproducible.
+A detector can only be scored against series whose truth is known, so these prove the
+anomaly engine catches known behaviours and does not cry wolf on noise. They live in the
+test tree and never reach the map, the API or the package. Every generator returns a
+MeasurementPoint with a known ground truth, from a seeded numpy Generator.
 """
 
 from __future__ import annotations
@@ -42,7 +40,7 @@ def _build_point(
         los_velocity=velocity,
         coherence=coherence,
         quality=coherence,
-        source="synthetic",
+        source="test-fixture",
         product="labelled-fixture",
         processing_window=f"{dates[0].year}-{dates[-1].year}",
         time_series=TimeSeries(point_id=point_id, samples=samples),

@@ -1,4 +1,4 @@
-"""Anomaly-engine regression suite against labelled synthetic events.
+"""Anomaly-engine regression suite against labelled events with a known answer.
 
 Proves the engine catches the real thing (steady motion, acceleration, new onset,
 emerging clusters) and does NOT cry wolf on seasonal swings or low-coherence noise.
@@ -6,9 +6,9 @@ emerging clusters) and does NOT cry wolf on seasonal swings or low-coherence noi
 
 from __future__ import annotations
 
+import labelled_events
 import numpy as np
 
-from lithos_core import synthetic
 from lithos_core.anomaly import analyse_point, scan_area
 from lithos_core.schema import AnomalyType
 
@@ -18,7 +18,7 @@ def _rng():
 
 
 def test_steady_subsidence_flagged():
-    p = synthetic.steady_subsidence(_rng(), rate_mm_yr=-14.0)
+    p = labelled_events.steady_subsidence(_rng(), rate_mm_yr=-14.0)
     v = analyse_point(p)
     assert v.primary_flag is not None
     assert v.primary_flag.type in (AnomalyType.STEADY_MOTION,)
@@ -27,7 +27,7 @@ def test_steady_subsidence_flagged():
 
 
 def test_accelerating_subsidence_detected_with_onset():
-    p = synthetic.accelerating_subsidence(_rng(), rate_before=-3, rate_after=-22)
+    p = labelled_events.accelerating_subsidence(_rng(), rate_before=-3, rate_after=-22)
     v = analyse_point(p)
     assert v.primary_flag is not None
     assert v.primary_flag.type == AnomalyType.ACCELERATING_SUBSIDENCE
@@ -37,7 +37,7 @@ def test_accelerating_subsidence_detected_with_onset():
 
 
 def test_new_onset_subsidence_detected():
-    p = synthetic.new_onset_subsidence(_rng(), rate_after=-18)
+    p = labelled_events.new_onset_subsidence(_rng(), rate_after=-18)
     v = analyse_point(p)
     assert v.primary_flag is not None
     assert v.primary_flag.type in (
@@ -48,7 +48,7 @@ def test_new_onset_subsidence_detected():
 
 
 def test_stable_seasonal_not_flagged():
-    p = synthetic.stable_noise(_rng(), seasonal_mm=5.0, noise_mm=3.0)
+    p = labelled_events.stable_noise(_rng(), seasonal_mm=5.0, noise_mm=3.0)
     v = analyse_point(p)
     assert v.primary_flag is not None
     assert v.primary_flag.type == AnomalyType.STABLE
@@ -56,7 +56,7 @@ def test_stable_seasonal_not_flagged():
 
 
 def test_low_coherence_confidence_gated():
-    p = synthetic.low_coherence_wild(_rng())
+    p = labelled_events.low_coherence_wild(_rng())
     v = analyse_point(p)
     assert v.primary_flag is not None
     # Even if something is flagged, confidence must be gated low for junk points.
@@ -64,8 +64,8 @@ def test_low_coherence_confidence_gated():
 
 
 def test_newsworthiness_orders_accel_above_steady():
-    accel = analyse_point(synthetic.accelerating_subsidence(_rng()))
-    steady = analyse_point(synthetic.steady_subsidence(_rng(), rate_mm_yr=-14))
+    accel = analyse_point(labelled_events.accelerating_subsidence(_rng()))
+    steady = analyse_point(labelled_events.steady_subsidence(_rng(), rate_mm_yr=-14))
     assert accel.newsworthiness > steady.newsworthiness
 
 
@@ -75,7 +75,7 @@ def test_area_scan_finds_subsidence_cluster():
     # A subsiding bowl of 9 points clustered tightly, plus stable background.
     for k in range(9):
         points.append(
-            synthetic.steady_subsidence(
+            labelled_events.steady_subsidence(
                 rng,
                 rate_mm_yr=-18.0,
                 lon=11.34 + 0.001 * (k % 3),
@@ -85,7 +85,7 @@ def test_area_scan_finds_subsidence_cluster():
         )
     for k in range(12):
         points.append(
-            synthetic.stable_noise(
+            labelled_events.stable_noise(
                 rng,
                 lon=11.40 + 0.002 * k,
                 lat=44.55 + 0.001 * k,
