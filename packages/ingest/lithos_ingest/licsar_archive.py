@@ -89,7 +89,8 @@ class Reader:
         self._throttle = Throttle(requests_per_second)
 
     def read(self, url: str) -> tuple[np.ndarray, tuple[float, float, float, float]] | None:
-        """(array, (west, north, dx, dy)), or None when the product does not exist."""
+        """(array, (west, north, dx, dy)), or None when the archive says 404. Any other
+        failure raises, so a passing fault is not recorded as a missing product."""
         import rasterio
         from rasterio.errors import RasterioIOError
         from rasterio.windows import Window, from_bounds
@@ -114,5 +115,7 @@ class Reader:
                 data = src.read(1, window=window)
                 t = src.window_transform(window)
                 return data, (t.c, t.f, t.a, t.e)
-        except RasterioIOError:
-            return None
+        except RasterioIOError as exc:
+            if "404" in str(exc):
+                return None
+            raise

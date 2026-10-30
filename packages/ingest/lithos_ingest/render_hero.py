@@ -47,7 +47,7 @@ def render(out_path: Path | None = None) -> Path:
         loc="left",
         pad=10,
     )
-    ax.tick_params(colors="#5b6571", labelsize=8)
+    ax.tick_params(colors="#aab3bd", labelsize=8)
     for spine in ax.spines.values():
         spine.set_color("#283039")
     ax.set_xlabel("Longitude", color="#aab3bd", fontsize=9)
@@ -55,12 +55,14 @@ def render(out_path: Path | None = None) -> Path:
     ax.text(
         0.99,
         0.01,
-        "LiCSAR contains modified Copernicus Sentinel data 2021 to 2024 analysed by COMET. LiCSAR uses JASMIN.",
+        "LiCSAR contains modified Copernicus Sentinel data 2021 to 2024 analysed by the Centre for the "
+        "Observation\nand Modelling of Earthquakes, Volcanoes and Tectonics (COMET). LiCSAR uses JASMIN, "
+        "the UK's collaborative\ndata analysis environment (http://jasmin.ac.uk). Open Government Licence v3.0.",
         transform=ax.transAxes,
         ha="right",
         va="bottom",
-        color="#5b6571",
-        fontsize=7,
+        color="#d6d3cc",
+        fontsize=6.5,
     )
 
     out_path = out_path or repo_root / "docs" / "assets" / "hero.png"

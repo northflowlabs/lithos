@@ -11,7 +11,7 @@ LITHOS is an open source ground motion map that shows how the ground rises and s
 
 <img src="docs/assets/hero.png" alt="LITHOS map of Bologna, red where the plain north of the city sinks" width="820"/>
 
-<sub>Bologna, measured from Sentinel-1, October 2021 to April 2024: up to about 20 mm per year of subsidence on the plain north of the city, tied to GNSS station BOLG. Red is sinking, blue is rising. LiCSAR contains modified Copernicus Sentinel data 2021 to 2024 analysed by COMET. LiCSAR uses JASMIN.</sub>
+<sub>Bologna, measured from Sentinel-1, October 2021 to April 2024, tied to GNSS station BOLG: about 17 to 24 mm per year of subsidence at the fastest, on the plain northwest of the city. Red is sinking, blue is rising. East of 11.45E, where the points are less certain, the scene reads +2 mm per year at GNSS station MEDI against -3 from GNSS, the opposite sign, so those values are relative only. LiCSAR contains modified Copernicus Sentinel data 2021 to 2024 analysed by the Centre for the Observation and Modelling of Earthquakes, Volcanoes and Tectonics (COMET). LiCSAR uses JASMIN, the UK's collaborative data analysis environment (http://jasmin.ac.uk). [Open Government Licence v3.0](http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/).</sub>
 
 ## What it does
 
@@ -19,8 +19,8 @@ Cities sink as groundwater is drawn down, coastlines subside, and dams, railways
 
 LITHOS reads two of those public datasets. From the global COMET LiCSAR archive it reads unwrapped interferograms and solves them into scenes: displacement histories in two viewing geometries, combined into vertical motion. With a free key it also reads Ortho tiles from the European Ground Motion Service (EGMS). A map a non-specialist can read and an anomaly engine sit on top. LITHOS does not process raw radar.
 
-- **Click a point** to see its line-of-sight and vertical velocity in mm per year, its displacement time series and a plain-language summary, for example: *"This point sank steadily at about 14 mm per year from October 2021 to April 2024."*
-- **Draw an area** to get aggregate statistics, a count of points whose behaviour changed, and the hotspots inside it.
+- **Click a point** to see its vertical velocity in mm per year, its displacement time series and a plain-language summary with its period and 95% interval, for example: *"This point sank steadily at about 14 ± 2 mm per year (95% interval) with the datum tied to GNSS station BOLG from October 2021 to April 2024."* The API also serves line-of-sight velocity, from the descending frame only and not tied to GNSS.
+- **Draw an area** to get aggregate statistics, a count of points whose behaviour changed, and, with the API running, the hotspots inside it.
 - **See where data exists.** A coverage layer shows where the archive holds Sentinel-1 frames and how recent they are.
 - **Share and export.** Every view has a permalink. Export the map as PNG, a time series as CSV or an area as GeoJSON.
 - **Build on it.** A documented API serves coverage, points, time series and anomaly results.
@@ -36,7 +36,7 @@ Every point and area runs through a pipeline of standard, published statistics:
 - **Seasonal and secular motion:** separates reversible seasonal swings from long-term motion
 - **Confidence gating:** low-coherence points are not over-flagged
 
-Each flag carries a machine-readable record (type, magnitude, onset, confidence, evidence) and one sentence that states its uncertainty. A regression suite scores the engine on labelled test series with a known answer, and a recorded real series keeps the time-series solver honest. See [docs/anomaly-engine.md](docs/anomaly-engine.md).
+Each flag carries a machine-readable record (type, magnitude, onset, confidence, evidence) and one sentence with its period, its 95% interval and its datum. A verdict that changes when the processing is varied is published as inconclusive. A regression suite scores the engine on labelled test series with a known answer, and a recorded real series keeps the time-series solver honest. See [docs/anomaly-engine.md](docs/anomaly-engine.md).
 
 ## Coverage
 

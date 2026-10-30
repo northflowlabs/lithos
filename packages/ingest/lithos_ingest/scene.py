@@ -5,11 +5,11 @@ this reads the unwrapped interferograms over the area, averages them onto a comm
 removes the height-dependent part of the atmosphere and the east-west ramp, references them to the ground around
 a GNSS station and inverts the pair network into a displacement series (lithos_core.sbas).
 The two geometries are then combined into vertical and east motion, and the vertical is
-tied to the station's measured rate. Other stations check the result.
+tied to the station's measured rate. Every verdict is held against four other ways of
+processing the same data, and other stations check the result.
 
-The result is written to data/scenes/<slug> and served by the licsar adapter. Nothing in a
-scene is modelled: every value derives from the archive's interferograms and the GNSS
-rate. Products already read are kept in data/cache, so a rebuild only asks the archive for
+The result is written to data/scenes/<slug> and served by the licsar adapter. Every value
+derives from the archive's interferograms and GNSS rates, through the corrections above. Products already read are kept in data/cache, so a rebuild only asks the archive for
 what is new. Needs the `scenes` extra. Run:
     python -m lithos_ingest.scene bologna
 """
@@ -26,11 +26,18 @@ from pathlib import Path
 
 import numpy as np
 from lithos_core import stats
+from lithos_core.anomaly import analyse_point
 from lithos_core.sbas import (
     decompose_vertical_east,
     find_triplets,
     invert_network,
     phase_to_los_mm,
+)
+from lithos_core.schema import (
+    AnomalyType,
+    MeasurementPoint,
+    TimeSeries,
+    TimeSeriesSample,
 )
 
 from lithos_ingest import gnss
@@ -43,7 +50,7 @@ MIN_CELL_FILL = 0.25  # share of a cell's pixels that must survive that mask
 MIN_PAIR_SHARE = 0.3  # share of a cell's pairs that must have data
 MIN_EPOCH_SHARE = 0.7  # share of the solved window's dates a cell must reach
 MIN_SCENE_SHARE = 0.5  # share of cells that must be solved for a date to count
-MIN_MEAN_COHERENCE = 0.4  # below this, fields fade and show motion that is not there
+MIN_MEAN_COHERENCE = 0.4  # below this, rates scatter more; the cause is open, see docs/coverage.md
 MAX_RESIDUAL_MM = 3.0  # network residual above this means unreliable phase
 MAX_HEIGHT_M = 250.0  # above this, stratified atmosphere outweighs the signal
 MAX_NEIGHBOUR_GAP = 8.0  # mm/yr from the local median marks a lone outlier
@@ -51,11 +58,23 @@ MAX_INTERVAL = 5.0  # mm/yr half-width of the trend's 95% interval; wider is noi
 MAX_EAST_MM_YR = 8.0  # sideways motion this fast on built-up ground marks a bad solve
 MAX_PAIR_DAYS = 60  # the longest pairs read; the 48 and 60 day ones bridge network gaps
 MAX_INTERPOLATE_DAYS = 60  # a date is only read across a gap this short
-STATION_RADIUS_DEG = 0.012  # about 1 km: the ground around a GNSS station
-CHECK_RADIUS_DEG = 0.04  # about 3 km: how far to look for scene cells around a check station
+STATION_RADIUS_DEG = 0.012  # about 1 km: the ground around the tie station
+NEAR_STATION_KM = 1.5  # scene cells within this speak for a station
+EAST_CHECK = "MEDI"  # the station that decides whether the east of a scene can be trusted
+CHECK_RADIUS_KM = 4.5  # if none are, the nearest cells within this, flagged by their distance
 REFERENCE_MAX_HEIGHT_M = 120.0
 ATMOSPHERE_MIN_CELLS = 30
 ATMOSPHERE_MIN_RELIEF_M = 40.0  # no fit without this spread of heights
+
+
+@dataclass(frozen=True)
+class Variant:
+    """One way of processing a scene. The robustness test varies these."""
+
+    name: str
+    reference_lonlat: tuple[float, float] | None = None  # None: the spec's station
+    remove_ramp: bool = True
+    min_pair_days: int = 0
 
 
 @dataclass(frozen=True)
@@ -70,6 +89,8 @@ class SceneSpec:
     reference_lonlat: tuple[float, float]
     check_stations: dict[str, tuple[float, float]]  # not used in the tie
     atmosphere: BBox  # ground with relief and little motion, for the height fit
+    variants: tuple[Variant, ...] = ()  # the robustness test
+    relative_east_of: float | None = None  # past this longitude GNSS contradicts the datum
 
 
 SCENES = {
@@ -84,6 +105,13 @@ SCENES = {
         reference_lonlat=(11.3568, 44.5002),
         check_stations={"BLGN": (11.3506, 44.5110), "MEDI": (11.6468, 44.5200)},
         atmosphere=BBox(11.18, 44.40, 11.68, 44.48),
+        relative_east_of=11.45,
+        variants=(
+            Variant("reference moved 2 km", reference_lonlat=(11.3818, 44.5002)),
+            Variant("reference at BOLO", reference_lonlat=(11.3288, 44.4876)),
+            Variant("no ramp removal", remove_ramp=False),
+            Variant("no pairs under 24 days", min_pair_days=24),
+        ),
     )
 }
 
@@ -182,9 +210,12 @@ def _fetch(frame: str, spec: SceneSpec, workers: int = 4) -> tuple[list[archive.
         path = cache / f"{pair.name}.npz"
         if path.exists():
             return
-        unw = reader.read(f"{base}/interferograms/{pair.name}/{pair.name}.geo.unw.tif")
-        coh = reader.read(f"{base}/interferograms/{pair.name}/{pair.name}.geo.cc.tif")
-        if unw is None or coh is None:  # the archive withholds some products
+        try:
+            unw = reader.read(f"{base}/interferograms/{pair.name}/{pair.name}.geo.unw.tif")
+            coh = reader.read(f"{base}/interferograms/{pair.name}/{pair.name}.geo.cc.tif")
+        except OSError:  # a refused or failed read may work next time, so it is not recorded
+            return
+        if unw is None or coh is None:
             path.with_suffix(".missing").touch()
             return
         np.savez_compressed(path, unw=unw[0].astype("float32"), cc=coh[0])
@@ -201,6 +232,7 @@ def _remove_long_wavelength_delay(
     lons: np.ndarray,
     mask: np.ndarray,
     reference_height: float,
+    remove_ramp: bool = True,
 ) -> None:
     """Per interferogram, fit phase against height and longitude over `mask` and remove
     both terms: the stratified atmosphere, and the east-west ramp that atmosphere and orbit
@@ -221,18 +253,30 @@ def _remove_long_wavelength_delay(
         within = np.abs(misfit) < 2.5 * misfit.std()
         coef = np.linalg.lstsq(design[within], y[within], rcond=None)[0]
         phase[k] -= coef[0] * (np.nan_to_num(height, nan=reference_height) - reference_height)
-        phase[k] -= coef[1] * (lons - west)
+        if remove_ramp:
+            phase[k] -= coef[1] * (lons - west)
 
 
-def fetch_geometry(frame: str, spec: SceneSpec, grid: Grid) -> Geometry:
-    """Read one frame over the scene and solve its time series."""
+@dataclass
+class Stack:
+    """One frame's interferograms on the common grid, before any correction."""
+
+    frame: str
+    pairs: list[archive.Pair]
+    phase: np.ndarray  # (pairs, rows, cols)
+    coherence: np.ndarray
+    height_m: np.ndarray
+    unit_east: float
+    unit_up: float
+
+
+def load_stack(frame: str, spec: SceneSpec, grid: Grid) -> Stack:
     pairs, cache = _fetch(frame, spec)
     if not pairs:
         raise RuntimeError(f"{frame}: no readable interferograms since {spec.start}")
     with np.load(cache / "metadata.npz") as stored:
         meta = {k: stored[k] for k in stored.files}
     ids = _cell_ids(grid, tuple(meta["transform"]), meta["hgt"].shape)
-    height = _cell_mean(meta["hgt"].astype(float), ids, grid)
 
     used: list[archive.Pair] = []
     stacks: list[np.ndarray] = []
@@ -247,10 +291,32 @@ def fetch_geometry(frame: str, spec: SceneSpec, grid: Grid) -> Geometry:
         used.append(pair)
         stacks.append(_cell_mean(unw, ids, grid, MIN_CELL_FILL))
         cohs.append(_cell_mean(coherence, ids, grid))
-    phase = np.stack(stacks)
-    coherence = np.nanmean(np.stack(cohs), axis=0)
 
-    lon, lat = spec.reference_lonlat
+    def unit(key: str) -> float:
+        values = meta[key].astype(float)
+        return float(np.mean(values[np.isfinite(values) & (values != 0)]))
+
+    return Stack(
+        frame,
+        used,
+        np.stack(stacks),
+        np.nanmean(np.stack(cohs), axis=0),
+        _cell_mean(meta["hgt"].astype(float), ids, grid),
+        unit("E"),
+        unit("U"),
+    )
+
+
+def solve_geometry(
+    stack: Stack, spec: SceneSpec, grid: Grid, variant: Variant, only: np.ndarray | None = None
+) -> Geometry:
+    """Correct, reference and invert one frame. `only` limits the inversion to some cells."""
+    chosen = [i for i, p in enumerate(stack.pairs) if p.days >= variant.min_pair_days]
+    used = [stack.pairs[i] for i in chosen]
+    phase = stack.phase[chosen].copy()
+    height = stack.height_m
+
+    lon, lat = variant.reference_lonlat or spec.reference_lonlat
     in_ref = grid.near(lon, lat) & (height <= REFERENCE_MAX_HEIGHT_M)
     lons, lats = np.meshgrid(grid.lons, grid.lats)
     box = spec.atmosphere
@@ -258,7 +324,12 @@ def fetch_geometry(frame: str, spec: SceneSpec, grid: Grid) -> Geometry:
         (lons >= box.min_lon) & (lons <= box.max_lon) & (lats >= box.min_lat) & (lats <= box.max_lat)
     )
     _remove_long_wavelength_delay(
-        phase, height, lons, low_motion, float(np.nanmedian(height[in_ref]))
+        phase,
+        height,
+        lons,
+        low_motion,
+        float(np.nanmedian(height[in_ref])),
+        variant.remove_ramp,
     )
 
     # Tie every interferogram to the ground around the station, so an offset common to the
@@ -278,6 +349,8 @@ def fetch_geometry(frame: str, spec: SceneSpec, grid: Grid) -> Geometry:
     components = np.zeros(grid.shape, dtype=int)
     rejected = np.zeros(grid.shape, dtype=int)
     for r, c in np.ndindex(*grid.shape):
+        if only is not None and not only[r, c]:
+            continue
         cell = los[:, r, c]
         if np.isfinite(cell).mean() < MIN_PAIR_SHARE:
             continue
@@ -287,12 +360,17 @@ def fetch_geometry(frame: str, spec: SceneSpec, grid: Grid) -> Geometry:
         components[r, c] = solved.components
         rejected[r, c] = solved.pairs_rejected
 
-    def unit(key: str) -> float:
-        values = meta[key].astype(float)
-        return float(np.mean(values[np.isfinite(values) & (values != 0)]))
-
     return Geometry(
-        frame, epochs, series, residual, components, rejected, coherence, height, unit("E"), unit("U")
+        stack.frame,
+        epochs,
+        series,
+        residual,
+        components,
+        rejected,
+        stack.coherence,
+        height,
+        stack.unit_east,
+        stack.unit_up,
     )
 
 
@@ -316,9 +394,11 @@ def _at(dates: list[date], target: list[date], series: np.ndarray) -> np.ndarray
     return out
 
 
-def _trend(epochs: list[date], y: np.ndarray) -> stats.TrendResult:
+def _secular(epochs: list[date], y: np.ndarray) -> stats.TrendResult:
+    """Trend of a series with its annual cycle removed, so a window that starts in autumn
+    and ends in spring does not pass a season off as motion."""
     days = np.array([(d - epochs[0]).days for d in epochs], dtype=float)
-    return stats.robust_trend(days, y)
+    return stats.robust_trend(days, stats.harmonic_decompose(days, y).deseasonalised)
 
 
 def _drop_lone_outliers(velocity: np.ndarray) -> np.ndarray:
@@ -333,74 +413,172 @@ def _drop_lone_outliers(velocity: np.ndarray) -> np.ndarray:
     return kept
 
 
+def _vertical_east(
+    asc: Geometry, desc: Geometry, epochs: list[date], r: int, c: int
+) -> tuple[np.ndarray, np.ndarray]:
+    """Vertical and east series of one cell on the given dates, from the first solved date."""
+    y_a = _at(asc.epochs, epochs, asc.los_mm[:, r, c])
+    y_d = _at(desc.epochs, epochs, desc.los_mm[:, r, c])
+    ok = np.isfinite(y_a) & np.isfinite(y_d)
+    up = np.full(len(epochs), np.nan)
+    east = up.copy()
+    if ok.sum() >= 3:
+        u, e = decompose_vertical_east(
+            y_a[ok], y_d[ok], (asc.unit_east, asc.unit_up), (desc.unit_east, desc.unit_up)
+        )
+        up[ok] = u - u[0]
+        east[ok] = e - e[0]
+    return up, east
+
+
+def _km_between(lon_a: float, lat_a: float, lon_b: float, lat_b: float) -> float:
+    return float(np.hypot((lon_a - lon_b) * np.cos(np.radians(lat_a)), lat_a - lat_b) * 111.2)
+
+
 def _station_checks(
-    spec: SceneSpec, grid: Grid, epochs: list[date], vertical: np.ndarray, kept: np.ndarray
+    spec: SceneSpec, epochs: list[date], points: list[dict], series: dict
 ) -> list[dict]:
-    """Compare scene and GNSS rates at stations the scene was not tied to, over the part of
-    the window each one covers."""
+    """Same-date double differences: scene cells near a station minus scene cells near the
+    tie station, against the same difference of the two GNSS records. The tie cancels, and
+    an annual term is fitted, so what is left is the scene's error between the two places."""
+    tie_text = gnss.fetch_text(spec.reference_station)
+    tie_days, tie_up = gnss.parse_days(tie_text)
+    ref_lon, ref_lat = spec.reference_lonlat
+    grid = np.array([[np.nan if v is None else v for v in series[p["id"]]] for p in points])
+
+    def around(lon: float, lat: float) -> tuple[np.ndarray, np.ndarray]:
+        km = np.array([_km_between(lon, lat, p["lon"], p["lat"]) for p in points])
+        near = km <= NEAR_STATION_KM
+        return (near if near.any() else km <= CHECK_RADIUS_KM), km
+
+    ref_cells, _ = around(ref_lon, ref_lat)
+    ref_series = np.nanmedian(grid[ref_cells], axis=0)
     checks: list[dict] = []
     for station, (lon, lat) in spec.check_stations.items():
-        entry: dict = {"station": station, "lon": lon, "lat": lat}
+        entry: dict = {"station": station, "provider": gnss.PROVIDERS.get(station, "unknown")}
         checks.append(entry)
-        text = gnss.fetch_text(station)
-        last = min(epochs[-1], gnss.last_day(text))
-        rate = gnss.fit_rate(station, text, epochs[0], last)
-        if rate is None or (last - epochs[0]).days < 300:
-            entry["note"] = "station does not cover enough of the window"
-            continue
-        cells = grid.near(lon, lat, CHECK_RADIUS_DEG) & kept
-        dates = [d for d in epochs if d <= last]
-        rates = []
-        for r, c in zip(*np.nonzero(cells), strict=True):
-            y = vertical[: len(dates), r, c]
-            ok = np.isfinite(y)
-            if ok.sum() >= 10:
-                rates.append(_trend([d for d, k in zip(dates, ok, strict=True) if k], y[ok]).slope_mm_yr)
-        entry.update(gnss=rate.rate_mm_yr, gnss_sigma=rate.sigma_mm_yr, until=last.isoformat())
-        if rates:
-            entry.update(scene=round(float(np.median(rates)), 2), cells=len(rates))
-            entry["difference"] = round(entry["scene"] - rate.rate_mm_yr, 2)
-        else:
+        days, up = gnss.parse_days(gnss.fetch_text(station))
+        cells, km = around(lon, lat)
+        if not cells.any():
             entry["note"] = "no scene cells near the station"
+            continue
+        scene_dd = np.nanmedian(grid[cells], axis=0) - ref_series
+        gnss_dd = np.full(len(epochs), np.nan)
+        for k, d in enumerate(epochs):
+            ordinal = d.toordinal()
+            i, j = np.searchsorted(days, ordinal), np.searchsorted(tie_days, ordinal)
+            if i < days.size and j < tie_days.size and days[i] == ordinal and tie_days[j] == ordinal:
+                gnss_dd[k] = up[i] - tie_up[j]
+        ok = np.isfinite(scene_dd) & np.isfinite(gnss_dd)
+        used = [d for d, k in zip(epochs, ok, strict=True) if k]
+        if len(used) < 10 or (used[-1] - used[0]).days < 300:
+            entry["note"] = "the records share too few dates"
+            continue
+        scene_rate = _secular(used, scene_dd[ok]).slope_mm_yr
+        gnss_rate = _secular(used, gnss_dd[ok]).slope_mm_yr
+        entry.update(
+            km=[round(float(km[cells].min()), 1), round(float(km[cells].max()), 1)],
+            cells=int(cells.sum()),
+            dates=len(used),
+            first=used[0].isoformat(),
+            last=used[-1].isoformat(),
+            scene_minus_tie=round(scene_rate, 2),
+            gnss_minus_tie=round(gnss_rate, 2),
+            difference=round(scene_rate - gnss_rate, 2),
+        )
     return checks
 
 
-def combine(spec: SceneSpec, grid: Grid, asc: Geometry, desc: Geometry) -> dict:
-    """Vertical and east series from both geometries, over the dates they both solve."""
-    base, other = (asc, desc) if len(asc.epochs) <= len(desc.epochs) else (desc, asc)
+def _caveat(spec: SceneSpec, checks: list[dict], tie_rate: float) -> str:
+    """The one sentence that travels with the data, built from the station checks."""
+    parts = [f"Tied to GNSS only at {spec.reference_station}."]
+    for c in checks:
+        if "difference" not in c:
+            continue
+        if c["station"] == EAST_CHECK:
+            scene = tie_rate + c["scene_minus_tie"]
+            station = tie_rate + c["gnss_minus_tie"]
+            parts.append(
+                f"At {c['station']} the scene reads {scene:+.1f} mm per year where GNSS reads "
+                f"{station:+.1f}, the opposite sign, from cells {c['km'][0]} to {c['km'][1]} km away."
+            )
+        else:
+            parts.append(f"At {c['station']} they agree within {abs(c['difference']):.1f} mm per year.")
+    if spec.relative_east_of is not None:
+        parts.append(f"East of {spec.relative_east_of}E values are relative only.")
+    return " ".join(parts)
+
+
+def _peak(points: list[dict]) -> dict:
+    """The fastest sinking: one cell, and the median of the worst 1.5 km patch, which leans
+    less on any single cell."""
+    velocity = np.array([p["vertical_velocity"] for p in points])
+    lon = np.array([p["lon"] for p in points])
+    lat = np.array([p["lat"] for p in points])
+    patch = 0.0
+    for i in range(len(points)):
+        near = np.hypot((lon - lon[i]) * 0.71, lat - lat[i]) <= 1.5 / 111.2
+        if near.sum() >= 6:
+            patch = min(patch, float(np.median(velocity[near])))
+    return {"cell_mm_yr": round(float(velocity.min()), 1), "patch_mm_yr": round(patch, 1)}
+
+
+def _class_of(
+    pid: str, epochs: list[date], up: np.ndarray, rate: float, coherence: float
+) -> AnomalyType | None:
+    ok = np.isfinite(up)
+    if ok.sum() < 3:
+        return None
+    samples = [
+        TimeSeriesSample(date=d, displacement_mm=float(v))
+        for d, v in zip(epochs, up, strict=True)
+        if np.isfinite(v)
+    ]
+    point = MeasurementPoint(
+        id=pid,
+        lon=0.0,
+        lat=0.0,
+        vertical_velocity=rate,
+        coherence=coherence,
+        time_series=TimeSeries(point_id=pid, samples=samples),
+    )
+    flag = analyse_point(point).primary_flag
+    return flag.type if flag else None
+
+
+def combine(
+    spec: SceneSpec,
+    grid: Grid,
+    asc: Geometry,
+    desc: Geometry,
+    variants: dict[str, tuple[Geometry, Geometry]] | None = None,
+) -> dict:
+    """Vertical and east series from both geometries, over the dates they both solve. Each
+    point's verdict is then held against the variants, which are the same scene processed
+    differently."""
+    base = asc if len(asc.epochs) <= len(desc.epochs) else desc
     n_rows, n_cols = grid.shape
-    unit_a = (asc.unit_east, asc.unit_up)
-    unit_b = (desc.unit_east, desc.unit_up)
     counts = {"cells": n_rows * n_cols}
 
     def drop(reason: str, mask: np.ndarray, within: np.ndarray) -> np.ndarray:
         counts[reason] = int((within & mask).sum())
         return within & ~mask
 
-    solved = np.isfinite(asc.residual_mm) & np.isfinite(desc.residual_mm)
-    counts["no_data"] = int((~solved).sum())
-    alive = solved
+    alive = drop(
+        "low_coherence", ~(_mean_coherence(asc, desc) >= MIN_MEAN_COHERENCE), np.ones(grid.shape, bool)
+    )
+    alive = drop("no_data", ~(np.isfinite(asc.residual_mm) & np.isfinite(desc.residual_mm)), alive)
     alive = drop(
         "poor_network_fit",
         (asc.residual_mm > MAX_RESIDUAL_MM) | (desc.residual_mm > MAX_RESIDUAL_MM),
         alive,
     )
     alive = drop("high_ground", ~(asc.height_m <= MAX_HEIGHT_M), alive)
-    mean_coherence = np.nanmean(np.stack([asc.coherence, desc.coherence]), axis=0)
-    alive = drop("low_coherence", ~(mean_coherence >= MIN_MEAN_COHERENCE), alive)
 
     vertical = np.full((len(base.epochs), n_rows, n_cols), np.nan)
     east = vertical.copy()
     for r, c in zip(*np.nonzero(alive), strict=True):
-        y_base = base.los_mm[:, r, c]
-        y_other = _at(other.epochs, base.epochs, other.los_mm[:, r, c])
-        ok = np.isfinite(y_base) & np.isfinite(y_other)
-        if ok.sum() < 3:
-            continue
-        y_a, y_d = (y_base, y_other) if base is asc else (y_other, y_base)
-        up, ew = decompose_vertical_east(y_a[ok], y_d[ok], unit_a, unit_b)
-        vertical[ok, r, c] = up
-        east[ok, r, c] = ew
+        vertical[:, r, c], east[:, r, c] = _vertical_east(asc, desc, base.epochs, r, c)
 
     # The window is what got solved, not where the frames happen to end. It is judged on
     # the cells that hold most dates, so a field that decorrelates in winter has no vote.
@@ -413,21 +591,10 @@ def combine(spec: SceneSpec, grid: Grid, asc: Geometry, desc: Geometry) -> dict:
     epochs = base.epochs[first : last + 1]
     vertical = vertical[first : last + 1]
     east = east[first : last + 1]
-
-    alive = drop(
-        "too_few_dates",
-        np.isfinite(vertical).mean(axis=0) < MIN_EPOCH_SHARE,
-        alive,
-    )
+    alive = drop("too_few_dates", np.isfinite(vertical).mean(axis=0) < MIN_EPOCH_SHARE, alive)
     counts["split_network_kept"] = int(
         (alive & ((asc.components > 1) | (desc.components > 1))).sum()
     )
-
-    # Displacement counts from each cell's first solved date.
-    for r, c in zip(*np.nonzero(alive), strict=True):
-        ok = np.isfinite(vertical[:, r, c])
-        vertical[:, r, c] -= vertical[ok, r, c][0]
-        east[:, r, c] -= east[ok, r, c][0]
 
     # The datum: motion relative to the station, plus the station's measured rate.
     tie = gnss.fit_rate(
@@ -439,37 +606,39 @@ def combine(spec: SceneSpec, grid: Grid, asc: Geometry, desc: Geometry) -> dict:
     if tie is None:
         raise RuntimeError(f"{spec.reference_station} does not cover {epochs[0]} to {epochs[-1]}")
     years = np.array([(d - epochs[0]).days for d in epochs]) / stats.DAYS_PER_YEAR
-    vertical += tie.rate_mm_yr * years[:, None, None]
+
+    def tied(up: np.ndarray) -> np.ndarray:
+        return up + tie.rate_mm_yr * years
 
     velocity = np.full(grid.shape, np.nan)
     for r, c in zip(*np.nonzero(alive), strict=True):
+        vertical[:, r, c] = tied(vertical[:, r, c])
         ok = np.isfinite(vertical[:, r, c])
-        velocity[r, c] = _trend(
-            [e for e, k in zip(epochs, ok, strict=True) if k], vertical[ok, r, c]
-        ).slope_mm_yr
+        dates = [e for e, k in zip(epochs, ok, strict=True) if k]
+        velocity[r, c] = _secular(dates, vertical[ok, r, c]).slope_mm_yr
     smoothed = _drop_lone_outliers(velocity)
     alive = drop("lone_outlier", np.isfinite(velocity) & ~np.isfinite(smoothed), alive)
 
     points: list[dict] = []
     series: dict[str, list[float | None]] = {}
+    cells: list[tuple[int, int]] = []
     reasons = {"wide_interval": 0, "sideways": 0}
-    kept = np.zeros(grid.shape, dtype=bool)
     for r, c in zip(*np.nonzero(alive), strict=True):
         ok = np.isfinite(vertical[:, r, c])
         dates = [e for e, k in zip(epochs, ok, strict=True) if k]
-        up = _trend(dates, vertical[ok, r, c])
+        up = _secular(dates, vertical[ok, r, c])
         if up.ci95_half_width_mm_yr > MAX_INTERVAL:
             reasons["wide_interval"] += 1
             continue
-        ew = _trend(dates, east[ok, r, c])
+        ew = _secular(dates, east[ok, r, c])
         if abs(ew.slope_mm_yr) > MAX_EAST_MM_YR:
             reasons["sideways"] += 1
             continue
         los = _at(desc.epochs, dates, desc.los_mm[:, r, c])
         los_ok = np.isfinite(los)
-        los_trend = _trend([d for d, k in zip(dates, los_ok, strict=True) if k], los[los_ok])
+        los_trend = _secular([d for d, k in zip(dates, los_ok, strict=True) if k], los[los_ok])
         pid = f"{spec.slug}-{len(points):04d}"
-        coherence = float(np.nanmean([asc.coherence[r, c], desc.coherence[r, c]]))
+        coherence = round(float(_mean_coherence(asc, desc)[r, c]), 2)
         points.append(
             {
                 "id": pid,
@@ -480,24 +649,75 @@ def combine(spec: SceneSpec, grid: Grid, asc: Geometry, desc: Geometry) -> dict:
                 "horizontal_velocity": round(ew.slope_mm_yr, 2),
                 "los_velocity": round(los_trend.slope_mm_yr, 2),
                 "velocity_uncertainty": round(up.ci95_half_width_mm_yr, 2),
-                "coherence": round(coherence, 2),
-                "quality": round(coherence, 2),
+                "coherence": coherence,
+                "quality": coherence,
                 "source": "licsar",
                 "product": f"LiCSAR small-baseline vertical ({asc.frame} + {desc.frame})",
                 "processing_window": f"{dates[0]:%Y-%m} to {dates[-1]:%Y-%m}",
+                "reference": spec.reference_station,
             }
         )
         series[pid] = [None if np.isnan(v) else round(float(v), 2) for v in vertical[:, r, c]]
-        kept[r, c] = True
+        cells.append((int(r), int(c)))
     counts.update(reasons)
 
+    # The robustness test: a verdict stands only if every variant gives the same class.
+    held = np.ones(len(points), dtype=bool)
+    robustness: dict[str, dict] = {}
+    base_classes = [
+        _class_of(
+            p["id"],
+            epochs,
+            vertical[:, r, c],
+            p["vertical_velocity"],
+            p["coherence"],
+        )
+        for p, (r, c) in zip(points, cells, strict=True)
+    ]
+    for name, (var_asc, var_desc) in (variants or {}).items():
+        same = np.zeros(len(points), dtype=bool)
+        rates = []
+        for i, (p, (r, c)) in enumerate(zip(points, cells, strict=True)):
+            up = tied(_vertical_east(var_asc, var_desc, epochs, r, c)[0])
+            ok = np.isfinite(up)
+            rate = float("nan")
+            if ok.sum() >= 10:
+                rate = _secular(
+                    [e for e, k in zip(epochs, ok, strict=True) if k], up[ok]
+                ).slope_mm_yr
+                same[i] = _class_of(p["id"], epochs, up, rate, p["coherence"]) == base_classes[i]
+            rates.append(rate)
+        held &= same
+        finite = [
+            {**p, "vertical_velocity": v}
+            for p, v in zip(points, rates, strict=True)
+            if np.isfinite(v)
+        ]
+        robustness[name] = {
+            "same_verdict": int(same.sum()),
+            "peak": _peak(finite),
+            "median_shift_mm_yr": round(
+                float(np.nanmedian(np.array(rates) - [p["vertical_velocity"] for p in points])), 2
+            ),
+        }
+    if variants:
+        for p, ok in zip(points, held, strict=True):
+            p["verdict_robust"] = bool(ok)
+
     start, end = epochs[0], epochs[-1]
+    checks = _station_checks(spec, epochs, points, series)
+    caveat = _caveat(spec, checks, tie.rate_mm_yr)
+    east_check = next((c for c in checks if c["station"] == EAST_CHECK and "difference" in c), None)
+    if spec.relative_east_of is not None and east_check:
+        note = (
+            f"GNSS station {EAST_CHECK}, east of here, disagrees by about "
+            f"{abs(east_check['difference']):.0f} mm per year, with the opposite sign, so do not "
+            "read this as absolute motion."
+        )
+        for p in points:
+            if p["lon"] > spec.relative_east_of:
+                p["datum_note"] = note
     b = spec.bbox
-    checks = _station_checks(spec, grid, epochs, vertical, kept)
-    gaps = [abs(c["difference"]) for c in checks if "difference" in c]
-    agreement = (
-        f" Stations it was not tied to differ by up to {max(gaps):.0f} mm per year." if gaps else ""
-    )
     meta = {
         "slug": spec.slug,
         "name": spec.name,
@@ -511,13 +731,18 @@ def combine(spec: SceneSpec, grid: Grid, asc: Geometry, desc: Geometry) -> dict:
         "frames": [asc.frame, desc.frame],
         "point_count": len(points),
         "epochs": len(epochs),
-        "datum": asdict(tie),
+        "datum": {**asdict(tie), "provider": gnss.PROVIDERS.get(tie.station, "unknown")},
         "checks": checks,
+        "caveat": caveat,
+        "relative_east_of": spec.relative_east_of,
+        "peak": _peak(points),
+        "robustness": robustness,
+        "verdicts_held": int(held.sum()) if variants else None,
         "filters": counts,
         "note": (
             f"Measured with Sentinel-1 from frames {asc.frame} and {desc.frame}, COMET LiCSAR "
             f"interferograms, {start:%B %Y} to {end:%B %Y}. Vertical motion is tied to GNSS "
-            f"station {spec.reference_station}.{agreement}"
+            f"station {spec.reference_station}."
         ),
     }
     return {
@@ -548,11 +773,25 @@ def write(scene: dict, out_dir: Path | None = None) -> Path:
     return out_dir
 
 
+def _mean_coherence(asc: Geometry, desc: Geometry) -> np.ndarray:
+    return np.nanmean(np.stack([asc.coherence, desc.coherence]), axis=0)
+
+
 def build(spec: SceneSpec) -> dict:
     grid = Grid.over(spec.bbox)
-    asc = fetch_geometry(spec.ascending, spec, grid)
-    desc = fetch_geometry(spec.descending, spec, grid)
-    return combine(spec, grid, asc, desc)
+    asc_stack = load_stack(spec.ascending, spec, grid)
+    desc_stack = load_stack(spec.descending, spec, grid)
+    only = np.nanmean(np.stack([asc_stack.coherence, desc_stack.coherence]), axis=0)
+    only = only >= MIN_MEAN_COHERENCE
+
+    def solve(variant: Variant) -> tuple[Geometry, Geometry]:
+        return (
+            solve_geometry(asc_stack, spec, grid, variant, only),
+            solve_geometry(desc_stack, spec, grid, variant, only),
+        )
+
+    asc, desc = solve(Variant("base"))
+    return combine(spec, grid, asc, desc, {v.name: solve(v) for v in spec.variants})
 
 
 def main() -> None:

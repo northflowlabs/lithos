@@ -74,7 +74,9 @@ def test_timeseries_json_and_csv():
     assert len(rj.json()["samples"]) > 40
     rc = client.get(f"/v1/points/{pid}/timeseries?format=csv")
     assert rc.status_code == 200
-    assert rc.text.startswith("date,displacement_mm")
+    assert rc.text.startswith("# LiCSAR contains modified Copernicus Sentinel data")
+    assert "date,displacement_mm" in rc.text
+    assert "\n# " in rc.text
 
 
 def test_point_verdict():

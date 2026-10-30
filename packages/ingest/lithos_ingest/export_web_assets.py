@@ -1,6 +1,6 @@
 """Export static hero assets for the web app's offline/standalone mode.
 
-The public Vercel deploy can render the full hero experience with no backend by reading
+A deployment with no API can render the full hero experience with no backend by reading
 these precomputed files from /public/hero. When a live API is configured the web app
 prefers it and uses these only as a fallback. Run:
     python -m lithos_ingest.export_web_assets
@@ -40,6 +40,7 @@ def export(out_dir: Path | None = None) -> Path:
                 "name": meta["name"],
                 "note": meta["note"],
                 "last_epoch": meta["last_epoch"],
+                "caveat": meta.get("caveat"),
             }
         ),
         encoding="utf-8",
@@ -75,6 +76,7 @@ def export(out_dir: Path | None = None) -> Path:
                     "source": p.source,
                     "product": p.product,
                     "processing_window": p.processing_window,
+                    "relative_only": p.datum_note is not None,
                     "anomaly_type": flag.type.value if flag else None,
                     "anomaly_confidence": flag.confidence if flag else None,
                     "anomaly_onset": flag.onset_date.isoformat() if flag and flag.onset_date else None,

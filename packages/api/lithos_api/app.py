@@ -46,6 +46,17 @@ async def _lifespan(app: FastAPI):
     yield
 
 
+def _export_notes() -> list[str]:
+    """Credits and the scene's caveat, for anything that leaves as a file."""
+    notes = [m.attribution for m in get_catalog().source_metas() if m.key == "licsar"]
+    notes += [m.license for m in get_catalog().source_metas() if m.key == "licsar"]
+    for source in get_catalog().sources:
+        scene = getattr(source, "hero", None)
+        if scene and scene.get("caveat"):
+            notes.append(scene["caveat"])
+    return notes
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="LITHOS API",
@@ -116,6 +127,7 @@ def create_app() -> FastAPI:
                     "name": scene["name"],
                     "note": scene["note"],
                     "last_epoch": scene["last_epoch"],
+                    "caveat": scene.get("caveat"),
                 }
         raise HTTPException(503, "No scene is available; check LITHOS_DATA_DIR")
 
@@ -157,7 +169,7 @@ def create_app() -> FastAPI:
             raise HTTPException(404, f"No time series for point '{point_id}'")
         if format == "csv":
             return PlainTextResponse(
-                serialize.timeseries_csv(ts),
+                serialize.timeseries_csv(ts, _export_notes()),
                 media_type="text/csv",
                 headers={"Content-Disposition": f'attachment; filename="{point_id}.csv"'},
             )

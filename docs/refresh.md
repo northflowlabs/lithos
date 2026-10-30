@@ -14,7 +14,8 @@ python -m lithos_ingest.render_hero         # refresh the README image
 ```
 
 Products already read stay in `data/cache`, so a rebuild only asks the archive for new ones.
-The first build of a scene reads about 1,400 products at the default limit of two a second,
+A build solves the scene five times, which takes a few minutes. The first build reads about 1,400
+products at the default limit of two a second,
 which takes about 15 minutes. Set `LICSAR_RATE_LIMIT_RPS` to change that limit, and keep it
 low: the archive is a public service.
 
@@ -35,7 +36,9 @@ pull requests". It has no schedule. To add one after a few runs by hand, add thi
 ## What to check before merging
 
 - `window` and `last_epoch` in `data/scenes/<slug>/meta.json`: the window is what was solved.
-- `checks` in the same file: the scene against GNSS stations it was not tied to.
+- `checks` in the same file: same-date double differences against GNSS stations it was not tied
+  to. `caveat` is built from them and travels with the data.
+- `robustness` and `verdicts_held`: how many verdicts survived each variant.
 - `filters`: how many cells each filter removed, against the previous build.
 
 If COMET stops publishing one of a scene's frames, the window stops moving. Pick another frame

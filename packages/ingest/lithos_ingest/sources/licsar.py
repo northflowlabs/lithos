@@ -67,7 +67,6 @@ class LicsarSource:
                 samples=[
                     TimeSeriesSample(date=d, displacement_mm=v)
                     for d, v in zip(dates, blob["series"][pid], strict=True)
-                    if v is not None
                 ],
             )
             self._series[pid] = ts
@@ -76,6 +75,9 @@ class LicsarSource:
                 lon=lon,
                 lat=lat,
                 height_m=props.get("height_m"),
+                ref_point_id=props.get("reference"),
+                verdict_robust=props.get("verdict_robust"),
+                datum_note=props.get("datum_note"),
                 vertical_velocity=props.get("vertical_velocity"),
                 horizontal_velocity=props.get("horizontal_velocity"),
                 los_velocity=props.get("los_velocity"),

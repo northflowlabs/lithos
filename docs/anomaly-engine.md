@@ -15,11 +15,15 @@ For each measurement point with enough history (at least 12 epochs):
    `y = a + b·t + c·sin(2πt) + d·cos(2πt)` (t in years), separating an annual seasonal
    cycle from the long-term trend. A reversible seasonal swing is never read as motion.
 3. **Change-point detection**: binary segmentation on the *de-seasonalised* series, with
-   a proper nested-model F-test gate (conservative, so we miss marginal splits rather than
-   invent them). Finds regime shifts and the onset of acceleration, with a date.
+   a nested-model F statistic scaled for autocorrelated residuals. It is a screening threshold,
+   not a significance level. A slope needs at least a year on each side. Finds regime shifts,
+   with a date.
 4. **Classification**: comparing the slope before and after the strongest change-point
-   yields: accelerating subsidence, accelerating uplift, new-onset subsidence/uplift,
-   stabilising, steady motion, or stable.
+   yields: accelerating subsidence or uplift, new-onset subsidence or uplift, slowing, a change
+   of direction, stabilising, steady motion, stable, or inconclusive.
+6. **Robustness test** (scene builds): the scene is solved four more ways: the reference moved
+   2 km, the reference at the old BOLO site, no ramp removal, and no pairs under 24 days. A
+   verdict that changes class in any of them is published as inconclusive.
 5. **Confidence gating**: coherence/quality scales the confidence down so low-quality
    points are not over-flagged.
 
@@ -29,8 +33,9 @@ Every flag carries:
 
 - **machine-readable:** `type`, `magnitude_mm_yr`, `onset_date`, `confidence`, `evidence`
   (the underlying statistics).
-- **human-readable:** one calm, precise, quotable sentence with uncertainty stated, for
-  example *"This point sank steadily at about 14 mm per year from October 2021 to April 2024."*
+- **human-readable:** one calm sentence with its 95% interval and datum, for example *"This
+  point sank steadily at about 14 ± 2 mm per year (95% interval) with the datum tied to GNSS
+  station BOLG from October 2021 to April 2024."*
   Sentences are in the past tense and name their period, because the data has an end date. No
   alarmism. No failure prediction.
 

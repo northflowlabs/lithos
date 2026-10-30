@@ -32,11 +32,13 @@ Geodetic Laboratory.
 - Citation: Blewitt, G., W. C. Hammond, and C. Kreemer (2018), Harnessing the GPS data explosion
   for interdisciplinary science, Eos, 99, doi:10.1029/2018EO104623, plus the provider of each
   station's data.
+- Providers: BOLG, whose RINEX header reads "GEOFISICA BOLOGNA" (institution not confirmed); BLGN,
+  INGV; MEDI, ASI Telespazio.
 
 ## Copernicus EGMS
 
-> Contains modified Copernicus data. European Ground Motion Service (EGMS), Copernicus
-> Land Monitoring Service, European Environment Agency.
+> Contains modified Copernicus data. European Ground Motion Service, Copernicus Land
+> Monitoring Service.
 
 - Service: <https://egms.land.copernicus.eu/>
 - Licence: free and open under the Copernicus data policy; download needs a CLMS API key.

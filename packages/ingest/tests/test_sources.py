@@ -19,7 +19,7 @@ from lithos_ingest import gnss
 from lithos_ingest import licsar_archive as archive
 from lithos_ingest.base import BBox, PointFilters, data_dir
 from lithos_ingest.catalog import LithosCatalog
-from lithos_ingest.scene import _at
+from lithos_ingest.scene import SCENES, _at, _caveat, _peak
 from lithos_ingest.sources.egms import EgmsSource, parse_ortho_csv
 from lithos_ingest.sources.licsar import LicsarSource
 
@@ -60,7 +60,7 @@ def test_scene_time_series_present():
     src = LicsarSource()
     pts = src.query_points(BOLOGNA, filters=PointFilters(max_points=5))
     ts = src.get_time_series(pts[0].id)
-    assert ts is not None and len(ts.samples) > 40
+    assert ts is not None and len(ts.dates) > 40
 
 
 def test_scene_filters_apply():
@@ -72,6 +72,57 @@ def test_scene_filters_apply():
 
 def test_no_scene_means_no_points():
     assert LicsarSource().query_points(BBox(-40.0, 20.0, -39.0, 21.0)) == []
+
+
+def test_verdicts_that_moved_under_the_robustness_test_are_not_published():
+    from lithos_core.anomaly import analyse_point
+
+    src = LicsarSource()
+    pts = src.query_points(BOLOGNA)
+    assert any(p.verdict_robust is False for p in pts)
+    assert all(p.verdict_robust is not None for p in pts)
+    for p in pts:
+        if p.verdict_robust is False and not p.datum_note:
+            assert analyse_point(p).primary_flag.type.value == "inconclusive"
+
+
+def test_east_of_the_line_nothing_is_called_motion():
+    from lithos_core.anomaly import analyse_point
+
+    pts = [p for p in LicsarSource().query_points(BOLOGNA) if p.lon > 11.45]
+    assert pts
+    for p in pts:
+        v = analyse_point(p)
+        assert v.primary_flag.type.value == "relative_only"
+        assert " rose " not in v.headline and " sank " not in v.headline
+        assert "not read this as absolute motion" in v.headline
+
+
+def test_the_caveat_keeps_the_disagreement_visible():
+    caveat = LicsarSource().hero["caveat"]
+    assert "opposite sign" in caveat and "MEDI" in caveat
+
+
+def test_peak_and_caveat_read_their_inputs():
+    points = [
+        {"vertical_velocity": -10.0 - i, "lon": 11.0 + i * 0.001, "lat": 44.0} for i in range(8)
+    ]
+    assert _peak(points)["cell_mm_yr"] == -17.0
+    spec = SCENES["bologna"]
+    checks = [
+        {"station": "BLGN", "difference": 0.3},
+        {"station": "MEDI", "difference": 5.0, "scene_minus_tie": 5.0, "gnss_minus_tie": 0.0, "km": [3.8, 4.4]},
+    ]
+    text = _caveat(spec, checks, -3.0)
+    assert "+2.0" in text and "-3.0" in text and "relative only" in text
+
+
+def test_a_stable_verdict_names_its_datum():
+    from lithos_core.anomaly import analyse_point
+
+    verdicts = [analyse_point(p) for p in LicsarSource().query_points(BOLOGNA)]
+    stable = [v for v in verdicts if v.primary_flag.type.value == "stable"]
+    assert stable and all("tied to GNSS station BOLG" in v.headline for v in stable)
 
 
 def test_licsar_frame_index_is_real_coverage():
@@ -165,6 +216,16 @@ def test_solves_a_recorded_cell():
     slope = np.polyfit(years[ok], solved.displacement_mm[ok], 1)[0]
     assert slope < -4  # receding from the satellite, as the plain subsides
     assert solved.residual_rms_mm < 3
+
+
+def test_reads_the_vertical_column_of_a_recorded_station():
+    text = (FIXTURES.parent / "gnss" / "BOLG.tenv3").read_text(encoding="utf-8")
+    years, up = gnss.parse_tenv3(text)
+    days, same = gnss.parse_days(text)
+    assert 90_000 < up[0] < 110_000  # u0 of 99 m plus the offset, in mm
+    assert np.array_equal(up, same)
+    assert date.fromordinal(int(days[0])) == date(2021, 9, 13)
+    assert 2021.7 < years[0] < 2021.71
 
 
 def test_fits_a_recorded_station():

@@ -27,7 +27,7 @@ jobs:
           key: licsar-${{ github.run_id }}
           restore-keys: licsar-
       - name: Install
-        run: pip install -e packages/core -e "packages/ingest[scenes]" matplotlib
+        run: pip install -e packages/core -e "packages/ingest[scenes]" "matplotlib==3.11.2" "rasterio==1.5.2"
       - name: Rebuild
         run: |
           python -m lithos_ingest.frames
@@ -38,7 +38,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git diff --quiet && { echo "Nothing changed"; exit 0; }
+          # The build date alone is no reason for a pull request.
+          git diff --quiet -I '"built":' && { echo "Nothing changed"; exit 0; }
           branch="refresh-scenes-${{ github.run_id }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

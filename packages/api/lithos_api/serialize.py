@@ -20,6 +20,7 @@ def point_feature(p: MeasurementPoint, verdict: PointVerdict | None = None) -> d
         "source": p.source,
         "product": p.product,
         "processing_window": p.processing_window,
+        "relative_only": p.datum_note is not None,
     }
     if verdict is not None:
         flag = verdict.primary_flag
@@ -96,10 +97,12 @@ def timeseries_dict(ts: TimeSeries) -> dict:
     }
 
 
-def timeseries_csv(ts: TimeSeries) -> str:
+def timeseries_csv(ts: TimeSeries, notes: list[str] | None = None) -> str:
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(["date", "displacement_mm", "uncertainty_mm"])
+    for line in notes or ():
+        buf.write(f"# {line}\n")
+    writer.writerow(["date", "displacement_mm"])
     for s in ts.samples:
-        writer.writerow([s.date.isoformat(), s.displacement_mm, s.uncertainty_mm or ""])
+        writer.writerow([s.date.isoformat(), "" if s.displacement_mm is None else s.displacement_mm])
     return buf.getvalue()

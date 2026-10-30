@@ -48,21 +48,50 @@ combined into vertical and east motion on the dates they share, and BOLG's measu
 
 Left out: cells with mean coherence under 0.4, which removes most farmland; poor network fit;
 ground above 250 m; too few dates; and cells that disagree with their neighbours. The counts are
-in `filters` in `data/scenes/bologna/meta.json`. Before the coherence filter, every cell rising
-faster than 8 mm per year had coherence under 0.5. Those were fields, whose short-pair phase is
-known to be biased, not uplift.
+in `filters` in `data/scenes/bologna/meta.json`.
+
+### Verdicts have to survive
+
+Every point's verdict is recomputed four more ways at build time: the reference moved 2 km, the
+reference at the former BOLO site, no ramp removal, and no pairs under 24 days. A verdict that
+changes class in any of them is published as inconclusive. In this build no change of behaviour
+survived, so none is published: the scene shows trends, not turning points. About 760 of 1,069
+verdicts held. "Stable" means under 2 mm per year on this datum, and moving the reference to BOLO
+shifts the whole scene by about 2 mm per year, so it is a statement about the datum as well as the
+ground.
 
 ### How far to trust it
 
-- The fastest subsidence is about 20 mm per year, north and west of the city. Single 400 m cells
-  reach 21. That peak held across coherence thresholds and moved about 2 mm per year with the
-  reference location, so read it as about 20, not as an exact figure.
+- **Fastest subsidence: about 17 to 24 mm per year**, on the plain northwest of the city. The range
+  has four causes: a single 400 m cell against the median of the worst 1.5 km patch (about 23 and
+  18), the reference location (about 2), ramp removal (about 1), and the seasonal term, which is
+  now removed from every rate because the window runs from autumn to spring.
+- **East of 11.45E the values are relative only.** The rates there are shown faded and carry no
+  motion verdict. At MEDI the scene reads about +2 mm per year where GNSS reads about -3, the
+  opposite sign. The nearest usable cells are 3.8 to 4.4 km from the station.
+- **Near the tie the scene agrees with GNSS.** At BLGN, 1.2 km from BOLG, the same-date double
+  difference agrees within 0.3 mm per year, over the 12 months the records share.
 - A trend's "±" is the 95% interval of the fit. It reflects scatter about the trend, not remaining
-  atmosphere, the reference or the tie.
-- Away from BOLG, absolute values can be off by several mm per year. Against stations the scene was
-  not tied to, it differs by about 4 mm per year at BLGN, over the 13 months the two overlap, and by
-  about 5 at MEDI, from cells 3 km from the station. `checks` in `meta.json` has the numbers. It has
-  not been compared with EGMS.
+  atmosphere, the reference or the tie. The tie's own 1 sigma, about 0.5 mm per year, allows for
+  correlated GNSS noise, but not for other long-period noise.
+- The scene has not been compared with EGMS.
+
+### What was tried for the east
+
+A plane through the GNSS stations was the natural correction, and it was not applied. With the
+scene widened to Modena, the error against GNSS is about -3 to -1 mm per year at MOPS and MODE, near
+zero at BOLG, and +7 at MEDI. A plane through those leaves about 2 mm per year at its own stations,
+and the error is not linear: it steps up between 11.45E and 11.5E, where the coherent ground breaks
+into islands separated by farmland. That points to the islands not being tied to the city, which a
+plane cannot fix, and only one site constrains the east.
+
+The cause of the rising cells is unproven. Short-pair phase bias over fields was the first
+suspect, so the 85 longer pairs (72 to 348 days) were compared with the short network. The
+difference does not grow as coherence falls in a consistent way: ascending 3.9 to 1.9 mm per year
+from low to high coherence, descending 0.8 to 1.9. And the east-west contrast in vertical rate is
+the same in both, about 4.6 mm per year. So bias is not shown, and it does not explain the east.
+Long pairs read about 3.5 mm per year lower than short ones everywhere, which is also unexplained.
+With only 85 pairs that is a weak test.
 
 ## Coverage expands over time
 
