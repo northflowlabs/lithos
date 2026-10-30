@@ -36,7 +36,7 @@ def render(out_path: Path | None = None) -> Path:
     fig, ax = plt.subplots(figsize=(8.2, 5.6), dpi=100)
     fig.patch.set_facecolor("#0b0e12")
     ax.set_facecolor("#0b0e12")
-    sc = ax.scatter(lons, lats, c=vels, cmap="RdBu", vmin=-20, vmax=20, s=9, marker="s", edgecolors="none", alpha=alphas)
+    sc = ax.scatter(lons, lats, c=vels, cmap="RdBu", vmin=-20, vmax=20, s=9, marker="s", edgecolors="none", alpha=alphas)  # type: ignore[arg-type]
     cb = plt.colorbar(sc, ax=ax, fraction=0.035, pad=0.02)
     cb.set_label("Vertical velocity (mm/yr)  ·  red sinks, blue rises", color="#e9e6df")
     cb.ax.yaxis.set_tick_params(color="#aab3bd")
