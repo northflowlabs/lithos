@@ -8,6 +8,7 @@ Requires matplotlib, which is in the dev extras and not a runtime dependency.
 from __future__ import annotations
 
 import json
+import textwrap
 from pathlib import Path
 
 from lithos_ingest.base import data_dir
@@ -25,16 +26,17 @@ def render(out_path: Path | None = None) -> Path:
     geo = json.loads((scene / "points.geojson").read_text(encoding="utf-8"))
     meta = json.loads((scene / "meta.json").read_text(encoding="utf-8"))
 
-    lons, lats, vels = [], [], []
+    lons, lats, vels, alphas = [], [], [], []
     for f in geo["features"]:
         lons.append(f["geometry"]["coordinates"][0])
         lats.append(f["geometry"]["coordinates"][1])
         vels.append(f["properties"].get("vertical_velocity") or 0.0)
+        alphas.append(0.35 if f["properties"].get("datum_note") else 1.0)
 
     fig, ax = plt.subplots(figsize=(8.2, 5.6), dpi=100)
     fig.patch.set_facecolor("#0b0e12")
     ax.set_facecolor("#0b0e12")
-    sc = ax.scatter(lons, lats, c=vels, cmap="RdBu", vmin=-20, vmax=20, s=9, marker="s", edgecolors="none")
+    sc = ax.scatter(lons, lats, c=vels, cmap="RdBu", vmin=-20, vmax=20, s=9, marker="s", edgecolors="none", alpha=alphas)
     cb = plt.colorbar(sc, ax=ax, fraction=0.035, pad=0.02)
     cb.set_label("Vertical velocity (mm/yr)  ·  red sinks, blue rises", color="#e9e6df")
     cb.ax.yaxis.set_tick_params(color="#aab3bd")
@@ -52,17 +54,21 @@ def render(out_path: Path | None = None) -> Path:
         spine.set_color("#283039")
     ax.set_xlabel("Longitude", color="#aab3bd", fontsize=9)
     ax.set_ylabel("Latitude", color="#aab3bd", fontsize=9)
-    ax.text(
-        0.99,
-        0.01,
-        "LiCSAR contains modified Copernicus Sentinel data 2021 to 2024 analysed by the Centre for the "
-        "Observation\nand Modelling of Earthquakes, Volcanoes and Tectonics (COMET). LiCSAR uses JASMIN, "
-        "the UK's collaborative\ndata analysis environment (http://jasmin.ac.uk). Open Government Licence v3.0.",
-        transform=ax.transAxes,
-        ha="right",
-        va="bottom",
+    caveat = "\n".join(textwrap.wrap(meta.get("caveat", "") + " Those points are faded.", 118))
+    credit = (
+        "LiCSAR contains modified Copernicus Sentinel data 2021 to 2024 analysed by the Centre for "
+        "the Observation and Modelling of Earthquakes, Volcanoes and Tectonics (COMET). LiCSAR uses "
+        "JASMIN, the UK's collaborative data analysis environment (http://jasmin.ac.uk). Open "
+        "Government Licence v3.0."
+    )
+    fig.text(
+        0.02,
+        0.0,
+        caveat + "\n" + "\n".join(textwrap.wrap(credit, 118)),
+        ha="left",
+        va="top",
         color="#d6d3cc",
-        fontsize=6.5,
+        fontsize=7,
     )
 
     out_path = out_path or repo_root / "docs" / "assets" / "hero.png"
