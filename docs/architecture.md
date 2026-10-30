@@ -25,7 +25,7 @@ read the engine. No cleverness where stability matters.
 | Package | Language | Responsibility |
 | --- | --- | --- |
 | `core` (`lithos_core`) | Python | Canonical schema + anomaly engine. No GPL, no maritime methodology. |
-| `ingest` (`lithos_ingest`) | Python | `GroundMotionSource` adapters (EGMS, LiCSAR, sample), normalisation, catalog, coverage. |
+| `ingest` (`lithos_ingest`) | Python | `GroundMotionSource` adapters (LiCSAR, EGMS), the scene builder, catalog, coverage. |
 | `api` (`lithos_api`) | Python / FastAPI | REST + GraphQL over the catalog. |
 | `web` (`@northflow/lithos-web`) | TypeScript / Next.js | Map-first UI: hero, inspect, AOI, coverage, exports, permalinks. |
 | `notebook` | Jupyter | Colab-runnable mirror of the core flow. |
@@ -62,12 +62,11 @@ changes. That is what makes the engine global by design.
   point and cached.
 - AOI scans run the spatial engine on demand over the points inside a drawn polygon.
 
-### Spatial store: DuckDB vs PostGIS
+### Storage
 
-The default path uses cached parquet/DuckDB tiles on local disk: zero-config and fast at
-city scale. Move to PostGIS when indexing large, frequently updated tile sets with
-concurrent writers and in-database MVT generation. The catalog is storage-agnostic, so
-this is configuration, not a rewrite. See [`infra/README.md`](../infra/README.md).
+Scenes are plain files under `data/scenes/`, loaded into memory by the adapter. That is
+zero-config and fast at city scale. There is no database. The catalog depends only on the
+source protocol, so a spatial store can be added behind an adapter if the data outgrows files.
 
 ## Honest coverage rendering
 

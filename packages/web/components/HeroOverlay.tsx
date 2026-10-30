@@ -3,13 +3,12 @@
 interface Props {
   name: string;
   note?: string;
-  isSynthetic: boolean;
   onDismiss: () => void;
 }
 
 // The headline + one-line promise overlaid on the live hero scene. Dismissible.
 // No splash wall between the user and the wow: the map is already behind this.
-export function HeroOverlay({ name, note, isSynthetic, onDismiss }: Props) {
+export function HeroOverlay({ name, note, onDismiss }: Props) {
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center">
       <div className="pointer-events-auto mt-16 max-w-xl rounded-xl bg-ink-900/80 backdrop-blur px-6 py-5 border border-ink-700 text-center shadow-panel">
@@ -22,8 +21,8 @@ export function HeroOverlay({ name, note, isSynthetic, onDismiss }: Props) {
         </p>
         <p className="mt-2 text-[11px] text-ink-400">
           Showing: {name}
-          {isSynthetic ? " · synthetic demonstration scene" : ""}
         </p>
+        {note && <p className="mt-1 text-[11px] text-ink-400">{note}</p>}
         <button
           onClick={onDismiss}
           className="pointer-events-auto mt-3 rounded-full bg-signal px-4 py-1.5 text-xs font-medium text-ink-900 hover:brightness-110"

@@ -7,41 +7,42 @@ pretend otherwise. Honest coverage is a first-class feature, not a footnote.
 
 | Region | Source | Coverage | Notes |
 | --- | --- | --- | --- |
-| EU + Norway + UK + Iceland | Copernicus EGMS | Dense, validated, mm-grade | Rolling ~5-year windows (2019 to 2023, 2020 to 2024) |
-| Global tectonic and volcanic belts, many populated regions | COMET LiCSAR | Strong but not uniform | Frame-based; density varies by region |
-| Stable continental interiors, oceans | none | Thin or none | Shown explicitly in the coverage layer |
+| Bologna, Italy | COMET LiCSAR | Measured scene | October 2021 to April 2024, vertical and east motion |
+| Everywhere the archive holds frames | COMET LiCSAR | Frames indexed; points once a scene is built | Not uniform; density varies by region |
+| Copernicus Participating States | Copernicus EGMS | Dense, validated, millimetre grade | Active only with a CLMS API key; rolling five-year releases |
 
-### EGMS footprint
+### LiCSAR
 
-Copernicus Participating States only. Live releases are rolling ~5-year windows; older
-baselines are archived or migrating to CDSE and are handled as gracefully absent. EGMS is
-not available outside these states, and the coverage layer says so.
+The archive publishes interferograms, not point velocities. `python -m lithos_ingest.frames`
+crawls it into a committed index of every frame, with its footprint and newest acquisition.
+Points exist where `python -m lithos_ingest.scene` has solved a scene; elsewhere the adapter
+returns none rather than inventing them. Some older products are withheld on the archive,
+which is why a scene's window can start later than its frame.
 
-### LiCSAR belts
+### EGMS
 
-LITHOS indexes the principal tectonic and volcanic belts as explicit coverage cells:
-Anatolia/Aegean, Italy/Tyrrhenian, Iran/Zagros, the East African Rift, the Andes,
-Cascadia/California, Japan, Indonesia/Sunda, the Himalaya, and Iceland. Outside the
-indexed belts the LiCSAR adapter returns no points rather than fabricating coverage.
+Copernicus Participating States only. Without a CLMS API key the adapter returns no points and
+its coverage is reported as unavailable. Its footprint is a coarse box; the EGMS search decides
+per query which tiles exist.
 
 ## How the coverage layer is built
 
-It is computed, not hardcoded. `LithosCatalog.coverage_grid()` walks a coarse global grid
-and, for each cell, asks every source whether it declares data there. Cells with at least
-one source are marked available (with the source list and density); cells with none are
-marked unavailable with the note *"No public InSAR ground-motion product indexed here."*
+It is computed, not hardcoded. `LithosCatalog.coverage_grid()` walks a 5 degree global grid and
+marks a cell available when a source extent overlaps it, with the frame count and the newest
+acquisition. Cells with none are marked unavailable with the note *"No public InSAR
+ground-motion product indexed here."* A covered cell means the archive holds frames there, not
+that LITHOS has solved them into points.
 
-So when you pan to the middle of an ocean or a stable craton, the map does not go blank
-and does not return a misleading zero. It shows the coverage overlay state for that cell,
-with a short why. That honesty is the product.
+## The hero scene
 
-## The shipped hero scene
-
-The default view is a cached scene over Bologna, Italy, a well-documented EGMS subsidence
-example. The bundled copy is a **synthetic stand-in** (clearly labelled `source:
-sample-demo`, `is_synthetic: true`) so the app renders in under three seconds with no
-credentials. Point the EGMS adapter at a real EGMS tile (free Copernicus account) to
-replace it with live data.
+The default view is Bologna, Italy, measured from two LiCSAR frames (`117A_04454_131312` and
+`095D_04589_131313`). Interferograms 12 to 36 days apart are averaged to about 400 m, tied to
+the foothills south of the city, inverted into time series for each geometry, and combined into
+vertical and east motion over the dates the two frames share. All values are relative to that
+reference ground, so the scene shows differential motion, not absolute motion. It has not yet
+been compared with EGMS or GNSS. Cells with poor network fit, high ground, wide uncertainty,
+implausible sideways motion or no agreement with their neighbours are left out. `data/scenes/bologna/meta.json` records the
+build date and the frames.
 
 ## Coverage expands over time
 

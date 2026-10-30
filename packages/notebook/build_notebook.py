@@ -33,9 +33,8 @@ and the flags.
 
 **Scope:** dry-land surface motion only. Observed motion and anomalies, never failure forecasts.
 
-**Data:** Copernicus EGMS (Europe) and COMET LiCSAR (global belts). This notebook runs on the
-cached hero scene by default so it works with no credentials. Add a free Copernicus account to
-pull live EGMS tiles.
+**Data:** a scene measured from COMET LiCSAR interferograms. It needs no credentials. Copernicus
+EGMS tiles (Europe) work too, with a free CLMS API key.
 
 **License:** Apache-2.0. LiCSAR is used as a data source over the network only (see `docs/licensing.md`).
 """,
@@ -44,17 +43,18 @@ pull live EGMS tiles.
         MD,
         """## 1. Install
 
-LITHOS ships as `pylithos-core` (the engine) and `pylithos-ingest` (data adapters). The bare
-`lithos` name is taken on PyPI, hence the `pylithos` prefix; the import modules are `lithos_core`
-and `lithos_ingest`.
+LITHOS is installed from its repository, which also holds the measured scenes. The packages
+are `pylithos-core` (the engine) and `pylithos-ingest` (data adapters); the import modules are
+`lithos_core` and `lithos_ingest`.
 """,
     ),
     cell(
         CODE,
-        """# In Colab, install from PyPI (once published) or from the repo.
-# %pip install pylithos-core pylithos-ingest
-# For now, install from a local checkout of the monorepo:
-%pip install -q -e packages/core -e packages/ingest matplotlib
+        """!git clone --quiet --depth 1 https://github.com/northflowlabs/lithos.git
+%cd lithos
+%pip install -q ./packages/core ./packages/ingest matplotlib
+import os
+os.environ["LITHOS_DATA_DIR"] = os.path.abspath("data")
 print("LITHOS ready.")
 """,
     ),
@@ -62,9 +62,8 @@ print("LITHOS ready.")
         MD,
         """## 2. Pick a location and pull points
 
-The `SampleSource` serves the cached Bologna hero scene offline. To pull live EGMS data, set
-`EGMS_USERNAME` / `EGMS_PASSWORD` and use `lithos_ingest.sources.egms.EgmsSource` instead, or
-add it to a `LithosCatalog`. The interface is identical.
+The catalog serves the Bologna scene, measured from Sentinel-1. With a CLMS API key in
+`CLMS_SERVICE_KEY` and the `egms` extra, the same call also returns EGMS tiles.
 """,
     ),
     cell(
@@ -72,10 +71,10 @@ add it to a `LithosCatalog`. The interface is identical.
         """from lithos_ingest.base import BBox
 from lithos_ingest.catalog import LithosCatalog
 
-# Bologna subsidence bowl (the hero scene).
-bbox = BBox(11.27, 44.43, 11.47, 44.57)
+# Bologna and the subsiding plain to its north.
+bbox = BBox(11.18, 44.40, 11.60, 44.60)
 
-catalog = LithosCatalog()              # sample + egms + licsar; degrades gracefully
+catalog = LithosCatalog()
 points = catalog.query_points(bbox)
 print(f"Pulled {len(points)} measurement points.")
 print("Strongest subsidence:", min(p.best_velocity for p in points if p.best_velocity is not None), "mm/yr")
@@ -85,7 +84,7 @@ print("Strongest subsidence:", min(p.best_velocity for p in points if p.best_vel
         MD,
         """## 3. Map the velocity field
 
-Blue rises, red sinks. The bowl should be obvious.
+Blue rises, red sinks. The plain north of the city is sinking; the city centre barely moves.
 """,
     ),
     cell(
@@ -166,18 +165,17 @@ for c in result.cluster_flags:
     ),
     cell(
         MD,
-        """## 6. Worked examples to try next
-
-Swap the bbox and re-run. With Copernicus credentials and the EGMS adapter you can pull any of
-these live. Without credentials, only the cached Bologna scene returns points.
-
-- **Bologna, Italy**: `BBox(11.27, 44.43, 11.47, 44.57)` (subsidence bowl, the hero scene).
-- **Mexico City**: `BBox(-99.30, 19.20, -98.95, 19.60)` (extreme groundwater subsidence; needs a global source).
-- **Groningen, Netherlands**: `BBox(6.50, 53.15, 6.95, 53.45)` (gas-extraction subsidence; EGMS).
+        """## 6. Where to go next
 
 LITHOS reports observed motion and flags anomalies. Interpretation and engineering judgement
-stay with qualified people. Please cite LITHOS and the underlying Copernicus / COMET data in any
-work you publish (see the repository README).
+stay with qualified people.
+
+To measure another area, add it to `SCENES` in `lithos_ingest/scene.py` and run
+`python -m lithos_ingest.scene <name>`. It needs the `scenes` extra and two frames, one ascending
+and one descending, with shared dates.
+
+Please cite LITHOS and the underlying Copernicus and COMET data in any work you publish
+(see the repository README).
 """,
     ),
 ]

@@ -7,10 +7,8 @@ from collections.abc import Callable
 from lithos_ingest.base import GroundMotionSource
 from lithos_ingest.sources.egms import EgmsSource
 from lithos_ingest.sources.licsar import LicsarSource
-from lithos_ingest.sources.sample import SampleSource
 
 _FACTORIES: dict[str, Callable[[], GroundMotionSource]] = {
-    "sample": SampleSource,
     "egms": EgmsSource,
     "licsar": LicsarSource,
 }

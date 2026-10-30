@@ -53,7 +53,8 @@ def create_app() -> FastAPI:
         version="0.1.0",
         description=(
             "Open access ground-motion intelligence. Coverage, points, time series, and "
-            "anomaly flags from EGMS and COMET LiCSAR, normalised into one schema. "
+            "anomaly flags, measured from COMET LiCSAR interferograms and EGMS tiles and "
+            "normalised into one schema. "
             "Dry-land surface motion only. Observed motion and anomalies, never failure forecasts."
         ),
         license_info={"name": "Apache-2.0", "url": "https://www.apache.org/licenses/LICENSE-2.0"},
@@ -106,17 +107,18 @@ def create_app() -> FastAPI:
     @app.get(f"{prefix}/hero")
     def hero() -> dict:
         """The zero-input default scene descriptor the web app loads first."""
-        from lithos_ingest.sources.sample import SampleSource
-
-        meta = SampleSource().meta_dict
-        return {
-            "bbox": meta.get("bbox", [11.27, 44.43, 11.47, 44.57]),
-            "center": meta.get("center", [11.343, 44.494]),
-            "window": meta.get("window", "2019-2023"),
-            "name": meta.get("name", "Bologna subsidence (hero scene)"),
-            "note": meta.get("note"),
-            "is_synthetic": meta.get("is_synthetic", True),
-        }
+        for source in get_catalog().sources:
+            scene = getattr(source, "hero", None)
+            if scene is not None:
+                return {
+                    "bbox": scene["bbox"],
+                    "center": scene["center"],
+                    "window": scene["window"],
+                    "name": scene["name"],
+                    "note": scene["note"],
+                    "last_epoch": scene["last_epoch"],
+                }
+        raise HTTPException(503, "No scene is available; check LITHOS_DATA_DIR")
 
     # --- coverage ----------------------------------------------------------------
     @app.get(f"{prefix}/coverage")

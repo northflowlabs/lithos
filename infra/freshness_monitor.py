@@ -14,16 +14,18 @@ from __future__ import annotations
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
 CHECKS = {
-    "egms": os.getenv("EGMS_API_BASE", "https://egms.land.copernicus.eu/api"),
+    "egms": os.getenv("EGMS_API_BASE", "https://egms.land.copernicus.eu/insar-api/archive")
+    + "/levels",  # answers 200 with a "please log in" body when the service is up
     "licsar": os.getenv(
-        "LICSAR_PORTAL_BASE",
-        "https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products",
-    ),
+        "LICSAR_ARCHIVE_BASE",
+        "https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products.public",
+    )
+    + "/",
 }
 
 
@@ -36,7 +38,7 @@ def check(url: str) -> dict:
 
 
 def main() -> int:
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     any_down = False
     for key, url in CHECKS.items():
         result = check(url)

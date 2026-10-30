@@ -30,7 +30,7 @@ export default function Page() {
   const [view, setView] = useState<{ lon: number; lat: number; zoom: number; bbox: Bbox | null }>({
     lon: 11.39,
     lat: 44.5,
-    zoom: 12,
+    zoom: 10.5,
     bbox: null,
   });
   const [layers, setLayers] = useState<Layers>(DEFAULT_LAYERS);
@@ -161,7 +161,6 @@ export default function Page() {
         <HeroOverlay
           name={hero.data.name}
           note={hero.data.note}
-          isSynthetic={hero.data.is_synthetic}
           onDismiss={() => setHeroDismissed(true)}
         />
       )}
@@ -178,7 +177,7 @@ export default function Page() {
       {aoi && <AoiPanel result={aoi.result} geojson={aoi.geo} onClose={() => setAoi(null)} />}
 
       <footer className="pointer-events-none absolute bottom-1 right-2 z-10 text-[10px] text-ink-400">
-        LITHOS · dry-land motion only · built on the same engine behind Northflow&apos;s maritime and humanitarian systems
+        LITHOS · dry-land motion only · LiCSAR contains modified Copernicus Sentinel data analysed by COMET
       </footer>
     </main>
   );

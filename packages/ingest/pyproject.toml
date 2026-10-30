@@ -25,8 +25,13 @@ Issues = "https://github.com/northflowlabs/lithos/issues"
 Research = "https://research.northflow.no/systems/lithos"
 
 [project.optional-dependencies]
+scenes = ["rasterio>=1.3"]
+egms = ["pyjwt[crypto]>=2.8", "pyproj>=3.6"]
 dev = [
   "matplotlib>=3.8",
+  "pyjwt[crypto]>=2.8",
+  "pyproj>=3.6",
+  "rasterio>=1.3",
   "pytest>=7.4",
   "pytest-cov>=4.1",
   "respx>=0.21",
@@ -35,7 +40,7 @@ dev = [
 ]
 
 [project.scripts]
-lithos-build-hero = "lithos_ingest.hero:main"
+lithos-build-scene = "lithos_ingest.scene:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["lithos_ingest"]

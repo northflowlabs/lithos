@@ -7,11 +7,10 @@ means implementing this one interface. Nothing downstream changes.
 
 ## Sources shipped
 
-| Adapter | Coverage | Access | License of data |
+| Adapter | Coverage | Access | Licence of data |
 | --- | --- | --- | --- |
-| `egms` | EU + Norway + UK + Iceland | EGMS machine-to-machine API (free Copernicus login) | Copernicus terms |
-| `licsar` | Global tectonic and volcanic belts | COMET-LiCS public HTTP archive | Copernicus Sentinel, analysed by COMET |
-| `sample` | The cached hero scene and fixtures | Local files in `data/samples/` | Synthetic demonstration data |
+| `licsar` | Scenes in `data/scenes/`; frames worldwide in the coverage layer | COMET-LiCS public HTTP archive | UK OGL v3.0 and Copernicus terms |
+| `egms` | Copernicus Participating States | EGMS archive API, with a free CLMS API key | Copernicus data policy |
 
 ## Licensing firewall
 
@@ -19,9 +18,9 @@ The `licsar` adapter fetches **data products over HTTP** from the public archive
 does not import, vendor, or link LiCSBAS / `licsar_proc` (which are GPL-3.0). See
 [`docs/licensing.md`](../../docs/licensing.md).
 
-## Hero scene
+## Scenes
 
-`python -m lithos_ingest.hero` regenerates the deterministic offline hero scene into
-`data/samples/`. The shipped hero is a synthetic stand-in modelled on the Bologna
-subsidence bowl so the app renders in under three seconds with no credentials. Point
-the `egms` adapter at real EGMS tiles (with a free Copernicus account) to replace it.
+`python -m lithos_ingest.scene bologna` reads the interferograms over Bologna, solves them and
+writes `data/scenes/bologna/`. `python -m lithos_ingest.frames` refreshes the frame index, and
+`python -m lithos_ingest.export_web_assets` the static files the web app can run from. Scene
+building needs the `scenes` extra (rasterio).

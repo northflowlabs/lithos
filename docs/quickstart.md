@@ -7,27 +7,25 @@ Three ways in: the web app, the notebook, and the Python library.
 ```bash
 git clone https://github.com/northflowlabs/lithos.git
 cd lithos
-cp .env.example .env        # optional: add free Copernicus credentials for live EGMS
+cp .env.example .env        # optional: add a CLMS API key for EGMS
 docker compose -f infra/docker-compose.yml up --build
 ```
 
 - Web app: <http://localhost:3000>
 - API + OpenAPI docs: <http://localhost:8000/docs>
 
-The hero scene renders without any credentials.
+The measured scenes render without any credentials.
 
 ## 2. The notebook (no install)
 
 Open `packages/notebook/lithos_quickstart.ipynb` in Colab. It pulls normalised points,
-runs the anomaly engine, and plots a velocity map, a time series, and the flags. Worked
-examples for Bologna, Mexico City, and Groningen are included.
+runs the anomaly engine, and plots a velocity map, a time series, and the flags.
 
 ## 3. The Python library
 
 ```bash
 python -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
 pip install -e "packages/core[dev]" -e "packages/ingest[dev]"
-python -m lithos_ingest.hero      # build the cached hero scene
 ```
 
 ```python
@@ -36,7 +34,7 @@ from lithos_ingest.catalog import LithosCatalog
 from lithos_core.anomaly import analyse_point, scan_area
 
 catalog = LithosCatalog()
-points = catalog.query_points(BBox(11.27, 44.43, 11.47, 44.57))   # Bologna
+points = catalog.query_points(BBox(11.18, 44.40, 11.60, 44.60))   # Bologna
 
 verdict = analyse_point(points[0])
 print(verdict.headline)
@@ -56,8 +54,19 @@ pip install -e "packages/core[dev]" -e "packages/ingest[dev]" -e "packages/api[d
 python -m lithos_api        # serves on :8000
 ```
 
-## Free Copernicus account (for live EGMS)
+## Build a scene
 
-Register at <https://dataspace.copernicus.eu/> (no cost). Put `EGMS_USERNAME` and
-`EGMS_PASSWORD` in `.env`. Without them, LITHOS serves the cached hero scene and any
-LiCSAR belt data, and degrades gracefully.
+```bash
+pip install -e "packages/ingest[scenes]"
+python -m lithos_ingest.scene bologna
+```
+
+Add an area to `SCENES` in `lithos_ingest/scene.py` with one ascending and one descending frame
+(`LicsarSource().frames_over(bbox)` lists them) and a patch of stable ground. A scene over a city
+reads about a thousand interferograms and takes a few minutes.
+
+## EGMS
+
+Register at <https://land.copernicus.eu> (no cost) and create an API token in your profile.
+Save the JSON file you receive, set `CLMS_SERVICE_KEY_FILE` to its path in `.env`, and install
+`pylithos-ingest[egms]`. Without a key, LITHOS serves its measured scenes and nothing from EGMS.

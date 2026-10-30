@@ -153,7 +153,7 @@ export const staticData = {
       max_uplift_mm_yr: Math.max(...vels),
       cluster_flags: [],
       top_points: top,
-      note: "Static demo: spatial cluster detection runs on a live API.",
+      note: "Cluster detection needs the LITHOS API; this page serves stored results.",
     };
   },
 };

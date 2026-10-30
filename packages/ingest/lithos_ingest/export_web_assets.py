@@ -11,9 +11,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from lithos_ingest.base import BBox
+from lithos_ingest.base import BBox, data_dir
 from lithos_ingest.catalog import LithosCatalog
-from lithos_ingest.sources.sample import SampleSource
+from lithos_ingest.sources.licsar import LicsarSource
 
 
 def _web_hero_dir() -> Path:
@@ -24,22 +24,22 @@ def export(out_dir: Path | None = None) -> Path:
     out_dir = out_dir or _web_hero_dir()
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    sample = SampleSource()
-    catalog = LithosCatalog(sources=[sample])
-    meta = sample.meta_dict
+    source = LicsarSource()
+    catalog = LithosCatalog(sources=[source])
+    meta = source.hero
     bbox = BBox(*meta["bbox"])
-    points = sample.query_points(bbox)
+    points = source.query_points(bbox)
 
     # 1. Descriptor.
     (out_dir / "hero.json").write_text(
         json.dumps(
             {
                 "bbox": meta["bbox"],
-                "center": meta.get("center", [11.343, 44.494]),
-                "window": meta.get("window", "2019-2023"),
-                "name": meta.get("name", "Bologna subsidence (hero scene)"),
-                "note": meta.get("note"),
-                "is_synthetic": meta.get("is_synthetic", True),
+                "center": meta["center"],
+                "window": meta["window"],
+                "name": meta["name"],
+                "note": meta["note"],
+                "last_epoch": meta["last_epoch"],
             }
         ),
         encoding="utf-8",
@@ -88,8 +88,8 @@ def export(out_dir: Path | None = None) -> Path:
     )
     (out_dir / "verdicts.json").write_text(json.dumps(verdicts), encoding="utf-8")
 
-    # 3. Time series (reuse the cached blob).
-    ts_src = Path(__file__).resolve().parents[3] / "data" / "samples" / "hero_timeseries.json"
+    # 3. Time series (reuse the scene file).
+    ts_src = data_dir() / "scenes" / meta["slug"] / "timeseries.json"
     (out_dir / "timeseries.json").write_text(ts_src.read_text(encoding="utf-8"), encoding="utf-8")
 
     # 4. Coverage grid (honest global availability), computed from real source extents.

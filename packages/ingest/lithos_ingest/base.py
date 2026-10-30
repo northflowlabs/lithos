@@ -6,8 +6,10 @@ this protocol and on the canonical schema, never on a source's native format.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import date
+from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from lithos_core.schema import (
@@ -16,6 +18,16 @@ from lithos_core.schema import (
     SourceMeta,
     TimeSeries,
 )
+
+
+def data_dir() -> Path:
+    """Where scenes live. An installed package has no repository around it, so set
+    LITHOS_DATA_DIR there; a source checkout finds its own data/ folder."""
+    configured = os.getenv("LITHOS_DATA_DIR")
+    return Path(configured) if configured else Path(__file__).resolve().parents[3] / "data"
+
+
+FRAME_INDEX = Path(__file__).resolve().parent / "data" / "licsar_frames.json"
 
 
 @dataclass(frozen=True)

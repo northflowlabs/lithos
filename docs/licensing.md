@@ -24,7 +24,8 @@ What this means in practice:
    LITHOS takes path (b): the anomaly engine in `packages/core` is built only from
    standard, openly-published time-series and spatial statistics (Theil-Sen trend,
    binary-segmentation change-points, harmonic seasonal/secular separation, Getis-Ord
-   Gi*). It contains no GPL code.
+   Gi*), and `lithos_core/sbas.py` solves interferogram networks from the small-baseline
+   method published by Berardino et al. (2002). Neither contains GPL code.
 
 ### Enforcement
 
@@ -37,10 +38,10 @@ The firewall is not just a promise:
 
 ## EGMS
 
-EGMS data is open under **Copernicus terms**. Downloads require a free Copernicus
-account. We attribute per Copernicus requirements (see [`attribution.md`](attribution.md)).
-We call the official EGMS machine-to-machine API directly rather than reusing third-party
-toolkit code, to avoid inheriting any incompatible license.
+EGMS data is open under the **Copernicus data policy**. Downloads need a free CLMS API key.
+We attribute per Copernicus requirements (see [`attribution.md`](attribution.md)). We call the
+official EGMS archive API directly rather than reusing third-party toolkit code, to avoid
+inheriting any incompatible licence.
 
 ## Scope boundary
 

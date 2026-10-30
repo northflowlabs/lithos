@@ -7,7 +7,7 @@ import { Providers } from "./providers";
 export const metadata: Metadata = {
   title: "LITHOS: See the ground move",
   description:
-    "Free, open ground-motion intelligence. Watch the Earth's surface rise and sink, millimetre by millimetre, and get an automatic flag when something is wrong. Built on Copernicus EGMS and COMET LiCSAR.",
+    "Free, open ground-motion intelligence. Watch the Earth's surface rise and sink, millimetre by millimetre, and get an automatic flag when something is wrong. Measured from Sentinel-1 by way of COMET LiCSAR.",
   metadataBase: new URL("https://lithos.northflow.no"),
   openGraph: {
     title: "LITHOS: See the ground move",

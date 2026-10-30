@@ -18,11 +18,11 @@ export function Legend({ coverageVisible }: { coverageVisible: boolean }) {
         <div className="mt-2 pt-2 border-t border-ink-700 space-y-1">
           <div className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-sm" style={{ background: "rgba(33,102,172,0.4)" }} />
-            <span>Data available</span>
+            <span>Sentinel-1 frames in the archive</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-sm" style={{ background: "rgba(58,63,71,0.7)" }} />
-            <span>No indexed coverage</span>
+            <span>No frames indexed</span>
           </div>
         </div>
       )}

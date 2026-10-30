@@ -1,0 +1,26 @@
+{
+  "slug": "bologna",
+  "name": "Bologna, Italy",
+  "source": "licsar",
+  "bbox": [
+    11.18,
+    44.4,
+    11.6,
+    44.6
+  ],
+  "center": [
+    11.39,
+    44.5
+  ],
+  "window": "2021-10 to 2024-04",
+  "first_epoch": "2021-10-11",
+  "last_epoch": "2024-04-23",
+  "built": "2026-10-30",
+  "frames": [
+    "117A_04454_131312",
+    "095D_04589_131313"
+  ],
+  "point_count": 1542,
+  "epochs": 63,
+  "note": "Measured with Sentinel-1 from frames 117A_04454_131312 and 095D_04589_131313, COMET LiCSAR interferograms, October 2021 to April 2024. Motion is relative to the foothills south of the city."
+}

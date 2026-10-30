@@ -7,5 +7,4 @@
 .git
 data/cache
 data/tiles
-data/*.duckdb
 docs/assets/*.gif

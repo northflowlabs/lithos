@@ -7,7 +7,7 @@ const LIGHT = process.env.NEXT_PUBLIC_BASEMAP_LIGHT || esri("World_Light_Gray_Ba
 const DARK = process.env.NEXT_PUBLIC_BASEMAP_DARK || esri("World_Dark_Gray_Base");
 
 const ATTRIBUTION =
-  'Tiles &copy; <a href="https://www.esri.com">Esri</a>, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. Ground motion: Copernicus EGMS &amp; COMET LiCSAR.';
+  'Tiles &copy; <a href="https://www.esri.com">Esri</a>, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. Ground motion: COMET LiCSAR, contains modified Copernicus Sentinel data.';
 
 // A minimal raster basemap style. No Mapbox token, no vendor lock-in. The data layers
 // (points, coverage) are added programmatically on top.

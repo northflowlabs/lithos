@@ -26,13 +26,13 @@ log = logging.getLogger("lithos.ingest.catalog")
 
 # A coarse global grid for the coverage overlay. Each declared source-cell stamps the
 # grid cells it overlaps. Cells nobody stamps are honestly reported as "none".
-_GLOBAL_GRID_DEG = 10.0
+_GLOBAL_GRID_DEG = 5.0
 
 
 class LithosCatalog:
     def __init__(self, sources: list[GroundMotionSource] | None = None) -> None:
         if sources is None:
-            keys = os.getenv("LITHOS_SOURCES", "sample,egms,licsar").split(",")
+            keys = os.getenv("LITHOS_SOURCES", "licsar,egms").split(",")
             sources = [get_source(k.strip()) for k in keys if k.strip()]
         self.sources = sources
         self._verdict_cache: dict[str, PointVerdict] = {}
@@ -85,23 +85,16 @@ class LithosCatalog:
 
     # --- warm-up -----------------------------------------------------------------
     def warm_hero(self) -> int:
-        """Precompute and cache verdicts for the cached hero scene so the first
-        anomaly request is served from cache and the hero view stays under the
-        three-second wow gate. Safe to call at startup; returns points warmed."""
+        """Precompute and cache verdicts for the hero scene so the first anomaly
+        request is served from cache and the hero view stays under the three-second
+        wow gate. Safe to call at startup; returns points warmed."""
         warmed = 0
         for src in self.sources:
-            if getattr(src, "key", None) != "sample":
-                continue
-            lister = getattr(src, "query_points", None)
-            cover = getattr(src, "list_coverage", None)
-            if not lister or not cover:
+            hero = getattr(src, "hero", None)
+            if hero is None:
                 continue
             try:
-                cells = cover()
-                if not cells:
-                    continue
-                bbox = BBox(*cells[0].bbox)
-                for p in lister(bbox):
+                for p in src.query_points(BBox(*hero["bbox"])):
                     self.verdict_for(p)
                     warmed += 1
             except Exception as exc:  # noqa: BLE001  warm-up must never crash the catalogue
@@ -149,8 +142,9 @@ class LithosCatalog:
     def coverage_grid(self) -> list[CoverageCell]:
         """A coarse global grid for the overlay, stamped from real source extents.
 
-        Cells with no source are returned with available=False and an honest note, so
-        the map can render emptiness as a deliberate scientific layer, never a blank.
+        A cell counts as covered when a source extent overlaps it. Cells with no source
+        are returned with available=False and an honest note, so the map can render
+        emptiness as a deliberate scientific layer, never a blank.
         """
         source_cells = self.coverage()
         grid: list[CoverageCell] = []
@@ -164,21 +158,27 @@ class LithosCatalog:
                     c
                     for c in source_cells
                     if c.available
-                    and c.bbox[0] <= cx <= c.bbox[2]
-                    and c.bbox[1] <= cy <= c.bbox[3]
+                    and c.bbox[0] < cell_bbox.max_lon
+                    and c.bbox[2] > cell_bbox.min_lon
+                    and c.bbox[1] < cell_bbox.max_lat
+                    and c.bbox[3] > cell_bbox.min_lat
                 ]
                 if overlapping:
                     sources = sorted({s for c in overlapping for s in c.sources})
-                    density = "dense" if any(c.density_class == "dense" for c in overlapping) else "moderate"
+                    density = "dense" if len(overlapping) >= 8 else "moderate"
+                    newest = max((c.newest_window or "" for c in overlapping), default="")
                     grid.append(
                         CoverageCell(
                             cell_id=f"g{int(cx)}_{int(cy)}",
                             bbox=cell_bbox.as_tuple(),
                             available=True,
                             sources=sources,
-                            newest_window=overlapping[0].newest_window,
+                            newest_window=newest or None,
                             density_class=density,
-                            note=", ".join(sources),
+                            note=(
+                                f"{len(overlapping)} Sentinel-1 frames in the archive "
+                                f"({', '.join(sources)}), newest {newest or 'unknown'}."
+                            ),
                         )
                     )
                 else:

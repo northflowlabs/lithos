@@ -45,7 +45,7 @@ Every flag carries:
 ## Validation: catch the real thing, do not cry wolf
 
 The regression suite (`packages/core/tests/test_anomaly.py`) runs the engine against
-labelled synthetic events with known ground truth:
+labelled test series with a known answer, which live in the test tree:
 
 | Fixture | Expected |
 | --- | --- |

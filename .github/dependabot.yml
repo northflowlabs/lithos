@@ -34,6 +34,10 @@ updates:
       interval: "monthly"
     cooldown:
       default-days: 14
+    ignore:
+      # Major versions are migrated by hand; a grouped bump cannot carry them.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       all:
         patterns: ["*"]

@@ -1,7 +1,7 @@
 # One-command local bring-up for LITHOS.
 #   docker compose -f infra/docker-compose.yml up --build
-# The API serves the cached hero scene with no credentials. Add EGMS_USERNAME /
-# EGMS_PASSWORD in a root .env to pull live EGMS tiles.
+# The API serves the measured scenes with no credentials. Put a CLMS API key in a root
+# .env as CLMS_SERVICE_KEY to pull EGMS tiles as well.
 
 services:
   api:
@@ -14,8 +14,7 @@ services:
     environment:
       LITHOS_API_CORS_ORIGINS: "http://localhost:3000"
       LITHOS_LOG_LEVEL: "INFO"
-      EGMS_USERNAME: "${EGMS_USERNAME:-}"
-      EGMS_PASSWORD: "${EGMS_PASSWORD:-}"
+      CLMS_SERVICE_KEY: "${CLMS_SERVICE_KEY:-}"
     restart: unless-stopped
 
   web:
@@ -31,19 +30,3 @@ services:
     depends_on:
       - api
     restart: unless-stopped
-
-  # Optional spatial store for scale-out ingest. The default deployment uses the
-  # cached/DuckDB path and does not need this; uncomment to index large tile sets.
-  # db:
-  #   image: postgis/postgis:16-3.4
-  #   environment:
-  #     POSTGRES_USER: lithos
-  #     POSTGRES_PASSWORD: lithos
-  #     POSTGRES_DB: lithos
-  #   volumes:
-  #     - lithos_db:/var/lib/postgresql/data
-  #   ports:
-  #     - "5432:5432"
-
-# volumes:
-#   lithos_db:

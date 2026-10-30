@@ -6,7 +6,7 @@ export interface HeroDescriptor {
   window: string;
   name: string;
   note?: string;
-  is_synthetic: boolean;
+  last_epoch: string;
 }
 
 export interface PointProperties {

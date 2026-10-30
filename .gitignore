@@ -22,13 +22,11 @@ out/
 npm-debug.log*
 pnpm-debug.log*
 
-# Data: cached/normalized tiles are large and reproducible. Keep only small samples.
+# Data: downloads are large and reproducible. Scenes are committed.
 data/cache/
 data/tiles/
-data/*.duckdb
-data/*.parquet
-!data/samples/
-!data/samples/**
+!data/scenes/
+!data/scenes/**
 
 # Secrets
 .env

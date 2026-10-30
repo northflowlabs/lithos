@@ -1,21 +1,28 @@
 """EGMS adapter (Europe).
 
-Talks to the Copernicus European Ground Motion Service machine-to-machine API to
-download Ortho (vertical + horizontal) and Calibrated L2b products, then normalises
+Talks to the Copernicus European Ground Motion Service archive API, as documented in
+https://github.com/copernicus-land/egms-api, downloads Ortho (Level 3) tiles and normalises
 them into the canonical schema.
 
-Coverage truth encoded here: Copernicus Participating States only (EU + Norway + UK +
-Iceland), rolling ~5-year windows. EGMS data is open under Copernicus terms but
-downloads require a free Copernicus account.
-
-Graceful degradation: with no credentials, query_points returns [] and the catalog
-falls back to the cached sample source so the hero scene still renders. No hard crash.
+Access needs a personal CLMS API key: register at https://land.copernicus.eu, create an
+API token in your profile, and point CLMS_SERVICE_KEY_FILE at the JSON file you receive
+(or put its contents in CLMS_SERVICE_KEY). The key signs a short-lived grant, so it needs
+the `egms` extra (PyJWT, cryptography, pyproj). Without a key the adapter returns no
+points and reports its coverage as unavailable.
 """
 
 from __future__ import annotations
 
+import csv
+import io
+import json
 import logging
 import os
+import re
+import time
+import zipfile
+from datetime import date
+from pathlib import Path
 
 import httpx
 from lithos_core.schema import (
@@ -23,92 +30,186 @@ from lithos_core.schema import (
     MeasurementPoint,
     SourceMeta,
     TimeSeries,
+    TimeSeriesSample,
 )
 
-from lithos_ingest.base import BBox, PointFilters, TimeWindow
+from lithos_ingest.base import BBox, PointFilters, TimeWindow, data_dir
 
 log = logging.getLogger("lithos.ingest.egms")
 
-# Copernicus Participating States footprint, as coarse coverage cells. This is the
-# honest statement of where EGMS has data; densities are validated mm-grade within.
+API_BASE = "https://egms.land.copernicus.eu/insar-api/archive"
+
+# The Copernicus Participating States as one coarse box. The service does not cover the
+# whole box; the search endpoint decides, per query, which tiles exist.
 _EGMS_FOOTPRINT = BBox(min_lon=-25.0, min_lat=34.0, max_lon=45.0, max_lat=72.0)
+
+# The API refuses a bounding box wider than this in either direction.
+MAX_QUERY_DEG = 5.0
+_DATE_COLUMN = re.compile(r"^\d{8}$")
+
+
+def parse_ortho_csv(text: str) -> tuple[list[dict], list[date]]:
+    """Rows and epoch dates of one Ortho tile CSV. Epochs are columns named YYYYMMDD."""
+    delimiter = ";" if ";" in text.split("\n", 1)[0] else ","
+    reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
+    columns = [c for c in (reader.fieldnames or []) if _DATE_COLUMN.match(c)]
+    dates = [date(int(c[:4]), int(c[4:6]), int(c[6:8])) for c in columns]
+    rows = []
+    for row in reader:
+        row["_series"] = [float(row[c]) for c in columns]
+        rows.append(row)
+    return rows, dates
 
 
 class EgmsSource:
-    """EGMS M2M adapter. Degrades to empty (not error) without credentials."""
+    """EGMS archive API adapter. Returns nothing, and says so, without a key."""
 
     key = "egms"
 
     def __init__(
         self,
         api_base: str | None = None,
-        username: str | None = None,
-        password: str | None = None,
-        timeout: float = 30.0,
+        service_key: dict | None = None,
+        timeout: float = 120.0,
+        cache_dir: Path | None = None,
     ) -> None:
-        self.api_base = (api_base or os.getenv("EGMS_API_BASE", "https://egms.land.copernicus.eu/api")).rstrip("/")
-        self.username = username or os.getenv("EGMS_USERNAME")
-        self.password = password or os.getenv("EGMS_PASSWORD")
+        self.api_base = (api_base or os.getenv("EGMS_API_BASE", API_BASE)).rstrip("/")
+        self.service_key = service_key or self._key_from_env()
         self.timeout = timeout
+        self.cache_dir = cache_dir or data_dir() / "cache" / "egms"
         self._token: str | None = None
+        self._token_expires = 0.0
+        self._series: dict[str, TimeSeries] = {}
+
+    @staticmethod
+    def _key_from_env() -> dict | None:
+        path = os.getenv("CLMS_SERVICE_KEY_FILE")
+        if path:
+            return json.loads(Path(path).read_text(encoding="utf-8"))
+        inline = os.getenv("CLMS_SERVICE_KEY")
+        return json.loads(inline) if inline else None
 
     @property
     def configured(self) -> bool:
-        return bool(self.username and self.password)
+        return self.service_key is not None
 
     # --- auth --------------------------------------------------------------------
-    def _authenticate(self) -> str | None:
-        if self._token:
+    def _access_token(self) -> str:
+        """Exchange the service key for a short-lived access token (RFC 7523 grant)."""
+        if self._token and time.time() < self._token_expires:
             return self._token
-        if not self.configured:
-            log.info("EGMS credentials not set; adapter will return no points.")
-            return None
-        try:
-            resp = httpx.post(
-                f"{self.api_base}/auth/token",
-                data={"username": self.username, "password": self.password},
+        import jwt
+
+        assert self.service_key is not None
+        now = int(time.time())
+        key = self.service_key
+        grant = jwt.encode(
+            {
+                "iss": key["client_id"],
+                "sub": key["user_id"],
+                "aud": key["token_uri"],
+                "iat": now,
+                "exp": now + 3600,
+            },
+            key["private_key"],
+            algorithm="RS256",
+        )
+        resp = httpx.post(
+            key["token_uri"],
+            headers={"Accept": "application/json"},
+            data={"grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer", "assertion": grant},
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        token: str = resp.json()["access_token"]
+        self._token = token
+        self._token_expires = now + 3000
+        return token
+
+    def _headers(self) -> dict[str, str]:
+        return {"Authorization": f"Bearer {self._access_token()}", "Accept": "application/json"}
+
+    # --- archive API -------------------------------------------------------------
+    def _latest_release(self) -> str:
+        resp = httpx.get(f"{self.api_base}/releases", headers=self._headers(), timeout=self.timeout)
+        resp.raise_for_status()
+        return max(resp.json())
+
+    def _search(self, bbox: BBox, release: str, product_type: str) -> tuple[list[dict], str]:
+        resp = httpx.post(
+            f"{self.api_base}/search",
+            headers=self._headers(),
+            json={
+                "id": None,
+                "bbox": [[bbox.min_lon, bbox.min_lat], [bbox.max_lon, bbox.max_lat]],
+                "levels": ["L3"],
+                "releases": [release],
+                "productType": product_type,
+            },
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        if not body.get("status", True):
+            raise RuntimeError(f"EGMS search refused: {body.get('message')}")
+        return body.get("hits", []), body.get("id", "")
+
+    def _tile_text(self, filename: str, query_id: str) -> str:
+        """A tile's CSV, downloaded once and kept in the cache."""
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        path = self.cache_dir / filename
+        if not path.exists():
+            with httpx.stream(
+                "GET",
+                f"{self.api_base}/download/{filename}",
+                params={"id": query_id},
+                headers=self._headers(),
                 timeout=self.timeout,
-            )
-            resp.raise_for_status()
-            self._token = resp.json().get("access_token")
-        except httpx.HTTPError as exc:  # pragma: no cover - network path
-            log.warning("EGMS authentication failed: %s", exc)
-            self._token = None
-        return self._token
+                follow_redirects=True,
+            ) as resp:
+                resp.raise_for_status()
+                partial = path.with_suffix(".part")
+                with partial.open("wb") as fh:
+                    for chunk in resp.iter_bytes():
+                        fh.write(chunk)
+            partial.replace(path)
+        with zipfile.ZipFile(path) as archive:
+            name = next(n for n in archive.namelist() if n.lower().endswith(".csv"))
+            return archive.read(name).decode("utf-8")
 
     # --- GroundMotionSource ------------------------------------------------------
     def source_metadata(self) -> SourceMeta:
         return SourceMeta(
             key="egms",
             name="European Ground Motion Service (EGMS)",
-            license="Copernicus terms; free with a Copernicus account",
-            attribution="Contains modified Copernicus data. European Ground Motion Service, Copernicus Land Monitoring Service.",
+            license="Free and open under the Copernicus data policy; downloads need a CLMS API key",
+            attribution=(
+                "Contains modified Copernicus data. European Ground Motion Service, "
+                "Copernicus Land Monitoring Service."
+            ),
             citation=(
                 "European Environment Agency (Copernicus Land Monitoring Service), "
                 "European Ground Motion Service (EGMS)."
             ),
             coverage_description=(
-                "EU + Norway + UK + Iceland (Copernicus Participating States). "
-                "Validated, mm-grade, rolling ~5-year windows. Not available outside these states."
+                "Copernicus Participating States. Validated, rolling five-year releases. "
+                "Not available elsewhere. Active only when a CLMS API key is configured."
             ),
             url="https://egms.land.copernicus.eu/",
         )
 
     def list_coverage(self) -> list[CoverageCell]:
-        # The EGMS footprint as one honest coverage cell. The catalog refines density
-        # from points actually queried.
         return [
             CoverageCell(
                 cell_id="egms-footprint",
                 bbox=_EGMS_FOOTPRINT.as_tuple(),
                 available=self.configured,
                 sources=["egms"],
-                newest_window="2019-2023",
                 density_class="dense" if self.configured else "none",
                 note=(
-                    "Copernicus Participating States. Set EGMS_USERNAME/PASSWORD to enable downloads."
-                    if not self.configured
-                    else "EGMS Ortho/Calibrated products."
+                    "EGMS Ortho tiles, Copernicus Participating States."
+                    if self.configured
+                    else "EGMS needs a CLMS API key, which this deployment does not have."
                 ),
             )
         ]
@@ -119,67 +220,76 @@ class EgmsSource:
         time_window: TimeWindow | None = None,
         filters: PointFilters | None = None,
     ) -> list[MeasurementPoint]:
-        if not _EGMS_FOOTPRINT.contains(bbox.min_lon, bbox.min_lat):
+        if not self.configured:
             return []
-        token = self._authenticate()
-        if not token:
-            return []
-        try:  # pragma: no cover - network path, exercised in integration only
-            resp = httpx.get(
-                f"{self.api_base}/v1/points",
-                params={
-                    "bbox": ",".join(map(str, bbox.as_tuple())),
-                    "product": "ortho",
-                    "limit": (filters.max_points if filters and filters.max_points else 5000),
-                },
-                headers={"Authorization": f"Bearer {token}"},
-                timeout=self.timeout,
-            )
-            resp.raise_for_status()
-            return [self._normalise(f) for f in resp.json().get("features", [])]
-        except httpx.HTTPError as exc:
-            log.warning("EGMS query failed (%s); degrading gracefully.", exc)
-            return []
-
-    def get_time_series(self, point_id: str) -> TimeSeries | None:  # pragma: no cover
-        token = self._authenticate()
-        if not token:
-            return None
-        try:
-            resp = httpx.get(
-                f"{self.api_base}/v1/points/{point_id}/timeseries",
-                headers={"Authorization": f"Bearer {token}"},
-                timeout=self.timeout,
-            )
-            resp.raise_for_status()
-            from lithos_core.schema import TimeSeriesSample
-
-            samples = [
-                TimeSeriesSample(date=s["date"], displacement_mm=s["displacement_mm"])
-                for s in resp.json().get("samples", [])
-            ]
-            return TimeSeries(point_id=point_id, samples=samples)
-        except httpx.HTTPError as exc:
-            log.warning("EGMS time-series fetch failed: %s", exc)
-            return None
-
-    # --- normalisation -----------------------------------------------------------
-    @staticmethod
-    def _normalise(feature: dict) -> MeasurementPoint:
-        """Map one EGMS Ortho feature into the canonical schema."""
-        props = feature.get("properties", {})
-        lon, lat = feature.get("geometry", {}).get("coordinates", [0.0, 0.0])
-        return MeasurementPoint(
-            id=str(props.get("pid", props.get("id"))),
-            lon=lon,
-            lat=lat,
-            height_m=props.get("height"),
-            vertical_velocity=props.get("vel_v") or props.get("velocity_v"),
-            horizontal_velocity=props.get("vel_e") or props.get("velocity_e"),
-            los_velocity=props.get("vel_los") or props.get("velocity"),
-            velocity_uncertainty=props.get("vel_std") or props.get("velocity_std"),
-            coherence=props.get("coherence") or props.get("temporal_coherence"),
-            source="egms",
-            product=props.get("product", "EGMS-Ortho"),
-            processing_window=props.get("window"),
+        overlaps = (
+            bbox.min_lon <= _EGMS_FOOTPRINT.max_lon
+            and bbox.max_lon >= _EGMS_FOOTPRINT.min_lon
+            and bbox.min_lat <= _EGMS_FOOTPRINT.max_lat
+            and bbox.max_lat >= _EGMS_FOOTPRINT.min_lat
         )
+        too_wide = (
+            bbox.max_lon - bbox.min_lon > MAX_QUERY_DEG
+            or bbox.max_lat - bbox.min_lat > MAX_QUERY_DEG
+        )
+        if not overlaps or too_wide:
+            return []
+        try:
+            return self._fetch_points(bbox, filters)
+        except (httpx.HTTPError, RuntimeError, KeyError, zipfile.BadZipFile) as exc:
+            log.warning("EGMS query failed: %s", exc)
+            return []
+
+    def _fetch_points(self, bbox: BBox, filters: PointFilters | None) -> list[MeasurementPoint]:
+        from pyproj import Transformer
+
+        release = self._latest_release()
+        to_wgs84 = Transformer.from_crs("EPSG:3035", "EPSG:4326", always_xy=True)
+        east_by_cell: dict[tuple[str, str], float] = {}
+        hits, query_id = self._search(bbox, release, "ORTHO-EAST")
+        for hit in hits:
+            for row in parse_ortho_csv(self._tile_text(hit["filename"], query_id))[0]:
+                east_by_cell[(row["easting"], row["northing"])] = float(row["mean_velocity"])
+
+        points: list[MeasurementPoint] = []
+        hits, query_id = self._search(bbox, release, "ORTHO-UP")
+        for hit in hits:
+            rows, dates = parse_ortho_csv(self._tile_text(hit["filename"], query_id))
+            tile = hit.get("tileId", hit["filename"])
+            for row in rows:
+                lon, lat = to_wgs84.transform(float(row["easting"]), float(row["northing"]))
+                if not bbox.contains(lon, lat):
+                    continue
+                pid = f"egms-{tile}-{row['pid']}"
+                series = TimeSeries(
+                    point_id=pid,
+                    samples=[
+                        TimeSeriesSample(date=d, displacement_mm=v)
+                        for d, v in zip(dates, row["_series"], strict=True)
+                    ],
+                )
+                self._series[pid] = series
+                points.append(
+                    MeasurementPoint(
+                        id=pid,
+                        lon=lon,
+                        lat=lat,
+                        height_m=float(row["height"]),
+                        vertical_velocity=float(row["mean_velocity"]),
+                        horizontal_velocity=east_by_cell.get((row["easting"], row["northing"])),
+                        velocity_uncertainty=float(row["mean_velocity_std"]),
+                        source="egms",
+                        product="EGMS-Ortho",
+                        processing_window=release,
+                        time_series=series,
+                    )
+                )
+        if filters and filters.min_abs_velocity is not None:
+            points = [p for p in points if abs(p.best_velocity or 0) >= filters.min_abs_velocity]
+        points.sort(key=lambda p: abs(p.best_velocity or 0), reverse=True)
+        if filters and filters.max_points:
+            points = points[: filters.max_points]
+        return points
+
+    def get_time_series(self, point_id: str) -> TimeSeries | None:
+        return self._series.get(point_id)

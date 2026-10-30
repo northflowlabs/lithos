@@ -16,8 +16,9 @@ COPY packages/api/ packages/api/
 RUN pip install --upgrade pip \
     && pip install ./packages/core ./packages/ingest ./packages/api
 
-# Cached hero scene so the API serves the default view with no network.
-COPY data/samples/ data/samples/
+# Measured scenes the API serves.
+COPY data/scenes/ data/scenes/
+ENV LITHOS_DATA_DIR=/app/data
 
 EXPOSE 8000
 

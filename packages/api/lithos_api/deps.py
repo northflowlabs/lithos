@@ -15,7 +15,7 @@ MAX_BBOX_AREA = 30.0
 
 @functools.lru_cache(maxsize=1)
 def get_catalog() -> LithosCatalog:
-    """Process-wide catalog. Loads sources once; the sample source caches the hero."""
+    """Process-wide catalog. Loads sources once."""
     return LithosCatalog()
 
 

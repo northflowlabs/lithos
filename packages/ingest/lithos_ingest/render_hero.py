@@ -1,7 +1,7 @@
-"""Render a static hero PNG from the cached hero scene for the README and docs.
+"""Render a static hero PNG from the hero scene for the README and docs.
 
-The picture shows the velocity field of the synthetic demonstration scene set over
-Bologna. Run: python -m lithos_ingest.render_hero
+The picture shows the measured vertical velocity of the hero scene.
+Run: python -m lithos_ingest.render_hero
 Requires matplotlib, which is in the dev extras and not a runtime dependency.
 """
 
@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+
+from lithos_ingest.base import data_dir
+from lithos_ingest.sources.licsar import HERO_SCENE
 
 
 def render(out_path: Path | None = None) -> Path:
@@ -18,8 +21,9 @@ def render(out_path: Path | None = None) -> Path:
     import matplotlib.pyplot as plt
 
     repo_root = Path(__file__).resolve().parents[3]
-    samples = repo_root / "data" / "samples" / "hero_points.geojson"
-    geo = json.loads(samples.read_text(encoding="utf-8"))
+    scene = data_dir() / "scenes" / HERO_SCENE
+    geo = json.loads((scene / "points.geojson").read_text(encoding="utf-8"))
+    meta = json.loads((scene / "meta.json").read_text(encoding="utf-8"))
 
     lons, lats, vels = [], [], []
     for f in geo["features"]:
@@ -30,14 +34,14 @@ def render(out_path: Path | None = None) -> Path:
     fig, ax = plt.subplots(figsize=(8.2, 5.6), dpi=100)
     fig.patch.set_facecolor("#0b0e12")
     ax.set_facecolor("#0b0e12")
-    sc = ax.scatter(lons, lats, c=vels, cmap="RdBu", vmin=-20, vmax=20, s=14, edgecolors="none")
+    sc = ax.scatter(lons, lats, c=vels, cmap="RdBu", vmin=-20, vmax=20, s=9, marker="s", edgecolors="none")
     cb = plt.colorbar(sc, ax=ax, fraction=0.035, pad=0.02)
     cb.set_label("Vertical velocity (mm/yr)  ·  red sinks, blue rises", color="#e9e6df")
     cb.ax.yaxis.set_tick_params(color="#aab3bd")
     plt.setp(plt.getp(cb.ax.axes, "yticklabels"), color="#aab3bd")
 
     ax.set_title(
-        "LITHOS: Bologna ground motion, 2019 to 2023",
+        f"LITHOS: {meta['name']}, measured ground motion, {meta['window']}",
         color="#f6f4ef",
         fontsize=13,
         loc="left",
@@ -51,7 +55,7 @@ def render(out_path: Path | None = None) -> Path:
     ax.text(
         0.99,
         0.01,
-        "Cached demonstration scene · Source ethos: Copernicus EGMS",
+        "LiCSAR contains modified Copernicus Sentinel data analysed by COMET",
         transform=ax.transAxes,
         ha="right",
         va="bottom",

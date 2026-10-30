@@ -1,4 +1,4 @@
-"""API tests against the cached hero scene. No network."""
+"""API tests against the measured Bologna scene. No network."""
 
 from __future__ import annotations
 
@@ -6,14 +6,14 @@ from fastapi.testclient import TestClient
 from lithos_api.app import create_app
 
 client = TestClient(create_app())
-BBOX = "11.27,44.43,11.47,44.57"
+BBOX = "11.18,44.40,11.60,44.60"
 
 
 def test_health():
     r = client.get("/v1/health")
     assert r.status_code == 200
     assert r.json()["status"] == "ok"
-    assert "sample" in r.json()["sources"]
+    assert "licsar" in r.json()["sources"]
 
 
 def test_hero_descriptor():
@@ -21,14 +21,15 @@ def test_hero_descriptor():
     assert r.status_code == 200
     body = r.json()
     assert len(body["bbox"]) == 4
-    assert body["is_synthetic"] is True  # honest about the cached stand-in
+    assert "Sentinel-1" in body["note"]
+    assert "is_synthetic" not in body
 
 
 def test_sources_have_attribution():
     r = client.get("/v1/sources")
     assert r.status_code == 200
     keys = {s["key"] for s in r.json()["sources"]}
-    assert {"sample", "egms", "licsar"} <= keys
+    assert {"egms", "licsar"} <= keys
     for s in r.json()["sources"]:
         assert s["attribution"]
 
@@ -65,7 +66,7 @@ def test_timeseries_json_and_csv():
     pid = feats[0]["properties"]["id"]
     rj = client.get(f"/v1/points/{pid}/timeseries")
     assert rj.status_code == 200
-    assert len(rj.json()["samples"]) > 50
+    assert len(rj.json()["samples"]) > 40
     rc = client.get(f"/v1/points/{pid}/timeseries?format=csv")
     assert rc.status_code == 200
     assert rc.text.startswith("date,displacement_mm")
