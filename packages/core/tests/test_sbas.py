@@ -7,6 +7,7 @@ import numpy as np
 from lithos_core.sbas import (
     CYCLE_MM,
     decompose_vertical_east,
+    find_triplets,
     invert_network,
     phase_to_los_mm,
 )
@@ -34,6 +35,26 @@ def test_drops_an_unwrapping_error():
     solved = invert_network(pairs, los, 6)
     assert solved.pairs_rejected >= 1
     assert np.allclose(solved.displacement_mm, truth, atol=1e-6)
+
+
+def test_finds_closed_loops():
+    assert sorted(map(tuple, find_triplets(CHAIN))) == [(0, 1, 3), (1, 2, 4)]
+
+
+def test_closure_removes_the_pair_that_breaks_most_loops():
+    truth = np.array([0.0, -2.0, -5.0, -6.0, -8.0, -11.0])
+    pairs = np.array([[i, j] for i in range(6) for j in range(i + 1, min(i + 4, 6))])
+    los = truth[pairs[:, 1]] - truth[pairs[:, 0]]
+    los[6] -= 2 * CYCLE_MM
+    solved = invert_network(pairs, los, 6)
+    assert solved.pairs_rejected == 1
+    assert np.allclose(solved.displacement_mm, truth, atol=1e-6)
+
+
+def test_a_split_network_is_reported():
+    pairs = np.array([[0, 1], [1, 2], [0, 2], [3, 4]])
+    solved = invert_network(pairs, np.array([1.0, 1.0, 2.0, 9.0]), 5)
+    assert solved.components == 2
 
 
 def test_masked_pairs_are_skipped():

@@ -35,8 +35,11 @@ class AnomalyType(str, Enum):
     NEW_ONSET_SUBSIDENCE = "new_onset_subsidence"
     NEW_ONSET_UPLIFT = "new_onset_uplift"
     STABILISING = "stabilising"
-    EMERGING_CLUSTER = "emerging_cluster"
+    SLOWING = "slowing"
+    REVERSAL = "reversal"
+    MOTION_HOTSPOT = "motion_hotspot"
     STEADY_MOTION = "steady_motion"
+    INCONCLUSIVE = "inconclusive"
     STABLE = "stable"
 
 
@@ -79,7 +82,7 @@ class MeasurementPoint(BaseModel):
     los_velocity: float | None = None  # mm/yr along line of sight
     vertical_velocity: float | None = None  # mm/yr, negative = subsidence
     horizontal_velocity: float | None = None  # mm/yr east-west where available
-    velocity_uncertainty: float | None = None  # mm/yr (1 sigma)
+    velocity_uncertainty: float | None = None  # mm/yr, half-width of the 95% trend interval
 
     coherence: float | None = Field(default=None, ge=0, le=1)
     quality: float | None = Field(default=None, ge=0, le=1)
@@ -149,8 +152,13 @@ class AnomalyFlag(BaseModel):
     @property
     def is_notable(self) -> bool:
         """Notable = the ground is doing something worth a human's attention. Steady
-        motion at a real rate counts; only genuinely stable ground does not."""
-        return self.type != AnomalyType.STABLE
+        motion at a real rate counts; stable ground and an unclear trend do not."""
+        return self.type not in (AnomalyType.STABLE, AnomalyType.INCONCLUSIVE)
+
+    @property
+    def is_anomalous(self) -> bool:
+        """Anomalous = the behaviour changed. Steady motion is notable but not anomalous."""
+        return self.is_notable and self.type != AnomalyType.STEADY_MOTION
 
 
 class PointVerdict(BaseModel):

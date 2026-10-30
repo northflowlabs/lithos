@@ -9,7 +9,7 @@ from __future__ import annotations
 import labelled_events
 import numpy as np
 
-from lithos_core.anomaly import analyse_point, scan_area
+from lithos_core.anomaly import _classify_change, analyse_point, scan_area
 from lithos_core.schema import AnomalyType
 
 
@@ -23,7 +23,7 @@ def test_steady_subsidence_flagged():
     assert v.primary_flag is not None
     assert v.primary_flag.type in (AnomalyType.STEADY_MOTION,)
     assert v.velocity_mm_yr is not None and v.velocity_mm_yr < -8
-    assert "sinking" in v.headline
+    assert "sank" in v.headline
 
 
 def test_accelerating_subsidence_detected_with_onset():
@@ -33,7 +33,7 @@ def test_accelerating_subsidence_detected_with_onset():
     assert v.primary_flag.type == AnomalyType.ACCELERATING_SUBSIDENCE
     assert v.primary_flag.onset_date is not None
     assert v.primary_flag.confidence > 0.4
-    assert "increased after" in v.headline
+    assert "from around" in v.headline
 
 
 def test_new_onset_subsidence_detected():
@@ -94,8 +94,50 @@ def test_area_scan_finds_subsidence_cluster():
         )
     result = scan_area(points, cluster_radius_deg=0.005)
     assert result.point_count == 21
-    assert result.anomalous_count >= 9
+    assert result.anomalous_count == 0  # steady sinking is a hotspot, not a change
     assert result.max_subsidence_mm_yr < -10
-    assert any(f.type == AnomalyType.EMERGING_CLUSTER for f in result.cluster_flags)
+    assert any(f.type == AnomalyType.MOTION_HOTSPOT for f in result.cluster_flags)
     # Most newsworthy point should be from the subsiding bowl.
     assert result.verdicts[0].point_id.startswith("bowl-")
+
+
+def test_a_change_of_slope_is_named_for_what_the_ground_did():
+    assert _classify_change(5.0, -5.0) == AnomalyType.REVERSAL
+    assert _classify_change(-5.0, 5.0) == AnomalyType.REVERSAL
+    assert _classify_change(-12.0, -6.0) == AnomalyType.SLOWING
+    assert _classify_change(12.0, 6.0) == AnomalyType.SLOWING
+    assert _classify_change(-6.0, -12.0) == AnomalyType.ACCELERATING_SUBSIDENCE
+    assert _classify_change(6.0, 12.0) == AnomalyType.ACCELERATING_UPLIFT
+    assert _classify_change(-1.0, -9.0) == AnomalyType.NEW_ONSET_SUBSIDENCE
+    assert _classify_change(-9.0, -1.0) == AnomalyType.STABILISING
+
+
+def test_motion_with_no_clear_trend_is_not_called_stable():
+    rng = np.random.default_rng(3)
+    p = labelled_events.stable_noise(rng, seasonal_mm=0.0, noise_mm=40.0)
+    p.vertical_velocity = 4.5
+    p.los_velocity = 4.5
+    v = analyse_point(p)
+    assert v.primary_flag.type != AnomalyType.STABLE
+    assert "no significant motion" not in v.headline
+
+
+def test_steady_motion_is_not_anomalous():
+    result = scan_area([labelled_events.steady_subsidence(_rng(), rate_mm_yr=-14.0)])
+    assert result.anomalous_count == 0
+
+
+def test_a_hotspot_reports_the_ground_it_saw():
+    # A sinking area with one patch sinking less: high Gi*, but not uplift.
+    rng = _rng()
+    points = []
+    for i in range(30):
+        for j in range(30):
+            rate = -6.0 if (i < 6 and j < 6) else -20.0
+            p = labelled_events.steady_subsidence(
+                rng, rate_mm_yr=rate, lon=11.0 + i * 0.004, lat=44.0 + j * 0.004, point_id=f"p{i}-{j}"
+            )
+            points.append(p)
+    flags = scan_area(points).cluster_flags
+    assert flags
+    assert all(f.evidence["kind"] != "uplift" for f in flags)

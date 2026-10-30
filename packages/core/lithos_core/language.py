@@ -1,7 +1,8 @@
 """Plain-language generation for anomaly flags.
 
-One calm, precise, quotable sentence per verdict, with uncertainty stated. No
-alarmism, no failure forecasting. A journalist should be able to paste it as is.
+One calm, precise, quotable sentence per verdict. No alarmism, no failure forecasting.
+A journalist should be able to paste it as is. Measurements end on a known date, so every
+sentence is in the past tense and names its period.
 """
 
 from __future__ import annotations
@@ -23,48 +24,72 @@ def _rate(mm_yr: float | None) -> str:
     return f"about {abs(mm_yr):.0f} mm per year"
 
 
-def headline_for(flag: AnomalyFlag, velocity_mm_yr: float | None) -> str:
+def _period(period: tuple[date, date] | None) -> str:
+    if period is None:
+        return "over the measured period"
+    return f"from {period[0]:%B %Y} to {period[1]:%B %Y}"
+
+
+def _way(mm_yr: float | None) -> str:
+    return "sinking" if (mm_yr or 0) < 0 else "rising"
+
+
+def headline_for(
+    flag: AnomalyFlag,
+    velocity_mm_yr: float | None,
+    period: tuple[date, date] | None = None,
+) -> str:
     """Build the human sentence for a point's primary flag."""
     rate = _rate(velocity_mm_yr)
-    onset = _season_phrase(flag.onset_date) if flag.onset_date else None
+    when = _period(period)
+    onset = _season_phrase(flag.onset_date) if flag.onset_date else "mid-window"
+    before = flag.evidence.get("slope_before_mm_yr")
+    after = flag.evidence.get("slope_after_mm_yr", flag.magnitude_mm_yr)
 
-    if flag.type == AnomalyType.ACCELERATING_SUBSIDENCE:
-        base = f"This point has been sinking {rate}"
-        return f"{base} and the rate increased after {onset}." if onset else f"{base} and the rate is increasing."
-
-    if flag.type == AnomalyType.ACCELERATING_UPLIFT:
-        base = f"This point has been rising {rate}"
-        return f"{base} and the rate increased after {onset}." if onset else f"{base} and the rate is increasing."
-
-    if flag.type == AnomalyType.NEW_ONSET_SUBSIDENCE:
+    if flag.type in (AnomalyType.ACCELERATING_SUBSIDENCE, AnomalyType.ACCELERATING_UPLIFT):
         return (
-            f"This point was stable, then began sinking around {onset}, now {rate}."
-            if onset
-            else f"This point has recently begun sinking, now {rate}."
+            f"This point was {_way(after)} {_rate(before)}, and from around {onset} "
+            f"{_rate(after)}, {when}."
         )
 
-    if flag.type == AnomalyType.NEW_ONSET_UPLIFT:
+    if flag.type in (AnomalyType.NEW_ONSET_SUBSIDENCE, AnomalyType.NEW_ONSET_UPLIFT):
         return (
-            f"This point was stable, then began rising around {onset}, now {rate}."
-            if onset
-            else f"This point has recently begun rising, now {rate}."
+            f"This point was close to stable, then began {_way(after)} around {onset}, "
+            f"at {_rate(after)}, {when}."
+        )
+
+    if flag.type == AnomalyType.SLOWING:
+        return (
+            f"This point was {_way(before)} {_rate(before)}, and slowed to {_rate(after)} "
+            f"around {onset}, {when}."
+        )
+
+    if flag.type == AnomalyType.REVERSAL:
+        return (
+            f"This point changed direction around {onset}: it was {_way(before)} "
+            f"{_rate(before)}, then {_way(after)} {_rate(after)}, {when}."
         )
 
     if flag.type == AnomalyType.STABILISING:
         return (
-            f"This point was moving but has slowed and is now close to stable since {onset}."
-            if onset
-            else "This point was moving but has slowed and is now close to stable."
+            f"This point was {_way(before)} {_rate(before)}, and was close to stable "
+            f"after {onset}, {when}."
         )
 
     if flag.type == AnomalyType.STEADY_MOTION:
-        direction = "sinking" if (velocity_mm_yr or 0) < 0 else "rising"
-        return f"This point has been {direction} steadily at {rate} over the measured period."
+        verb = "sank" if (velocity_mm_yr or 0) < 0 else "rose"
+        return f"This point {verb} steadily at {rate} {when}."
 
-    if flag.type == AnomalyType.EMERGING_CLUSTER:
-        return "This area shows a newly forming deformation cluster over the selected window."
+    if flag.type == AnomalyType.INCONCLUSIVE:
+        return (
+            f"This point moved {rate} {when}, but that trend cannot be told apart from "
+            "the scatter in its measurements."
+        )
 
-    return "This point shows no significant motion over the measured period."
+    if flag.type == AnomalyType.MOTION_HOTSPOT:
+        return f"This area stood out from its surroundings in mean velocity {when}."
+
+    return f"This point showed no significant motion {when}."
 
 
 def confidence_word(confidence: float) -> str:

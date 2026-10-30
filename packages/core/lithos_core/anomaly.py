@@ -53,6 +53,22 @@ def _quality_factor(point: MeasurementPoint) -> float:
     return float(0.4 * (q / MIN_COHERENCE))
 
 
+def _classify_change(before: float, after: float) -> AnomalyType:
+    """Name a change of slope by what the ground did, so the sentence cannot contradict
+    the numbers. A slope going more negative is not subsidence if the point was rising."""
+    was_stable = abs(before) < STABLE_VELOCITY
+    now_stable = abs(after) < STABLE_VELOCITY
+    if was_stable and not now_stable:
+        return AnomalyType.NEW_ONSET_SUBSIDENCE if after < 0 else AnomalyType.NEW_ONSET_UPLIFT
+    if now_stable:
+        return AnomalyType.STABILISING
+    if before * after < 0:
+        return AnomalyType.REVERSAL
+    if abs(after) > abs(before):
+        return AnomalyType.ACCELERATING_SUBSIDENCE if after < 0 else AnomalyType.ACCELERATING_UPLIFT
+    return AnomalyType.SLOWING
+
+
 def analyse_point(point: MeasurementPoint) -> PointVerdict:
     """Full single-point analysis. Returns flags plus a calm headline sentence."""
     ts = point.time_series
@@ -61,7 +77,7 @@ def analyse_point(point: MeasurementPoint) -> PointVerdict:
     if ts is None or len(ts.samples) < MIN_SAMPLES:
         # Not enough history to say anything about change; report velocity if known.
         flag = AnomalyFlag(
-            type=AnomalyType.STEADY_MOTION
+            type=AnomalyType.INCONCLUSIVE
             if velocity is not None and abs(velocity) >= STABLE_VELOCITY
             else AnomalyType.STABLE,
             magnitude_mm_yr=velocity,
@@ -80,6 +96,7 @@ def analyse_point(point: MeasurementPoint) -> PointVerdict:
     t_days = _epoch_days(ts.dates)
     y = np.asarray(ts.displacements, dtype=float)
     start = ts.dates[0]
+    period = (ts.dates[0], ts.dates[-1])
 
     trend = stats.robust_trend(t_days, y)
     seasonal = stats.harmonic_decompose(t_days, y)
@@ -105,19 +122,7 @@ def analyse_point(point: MeasurementPoint) -> PointVerdict:
             "change_score": round(strongest.score, 2),
             "n_change_points": len(change_points),
         }
-        was_stable = abs(before) < STABLE_VELOCITY
-        now_moving = abs(after) >= STABLE_VELOCITY
-
-        if was_stable and now_moving and after < 0:
-            atype = AnomalyType.NEW_ONSET_SUBSIDENCE
-        elif was_stable and now_moving and after > 0:
-            atype = AnomalyType.NEW_ONSET_UPLIFT
-        elif abs(after) < abs(before) and abs(after) < STABLE_VELOCITY:
-            atype = AnomalyType.STABILISING
-        elif after < before:  # slope decreasing = more subsidence
-            atype = AnomalyType.ACCELERATING_SUBSIDENCE
-        else:
-            atype = AnomalyType.ACCELERATING_UPLIFT
+        atype = _classify_change(before, after)
 
         flags.append(
             AnomalyFlag(
@@ -131,7 +136,8 @@ def analyse_point(point: MeasurementPoint) -> PointVerdict:
 
     # 2. Steady secular motion (no strong change-point but clearly moving).
     if not flags:
-        if abs(obs_velocity) >= STABLE_VELOCITY and trend.significant:
+        moving = abs(obs_velocity) >= STABLE_VELOCITY
+        if moving and trend.significant:
             flags.append(
                 AnomalyFlag(
                     type=AnomalyType.STEADY_MOTION,
@@ -150,7 +156,7 @@ def analyse_point(point: MeasurementPoint) -> PointVerdict:
         else:
             flags.append(
                 AnomalyFlag(
-                    type=AnomalyType.STABLE,
+                    type=AnomalyType.INCONCLUSIVE if moving else AnomalyType.STABLE,
                     magnitude_mm_yr=obs_velocity,
                     confidence=float(0.7 * qf),
                     evidence={
@@ -177,10 +183,10 @@ def analyse_point(point: MeasurementPoint) -> PointVerdict:
         velocity_uncertainty_mm_yr=(
             round(point.velocity_uncertainty, 2)
             if point.velocity_uncertainty is not None
-            else round(trend.uncertainty_mm_yr, 2)
+            else round(trend.ci95_half_width_mm_yr, 2)
         ),
         flags=flags,
-        headline=headline_for(primary, obs_velocity),
+        headline=headline_for(primary, obs_velocity, period),
         newsworthiness=newsworthiness,
     )
 
@@ -224,8 +230,9 @@ def scan_area(
     cluster_radius_deg: float = 0.01,
     hotspot_z: float = 2.5,
 ) -> AreaScanResult:
-    """Analyse every point, then run Getis-Ord Gi* over velocities to surface
-    emerging clusters (newly forming subsidence or uplift bowls)."""
+    """Analyse every point, then run Getis-Ord Gi* over velocities to find hotspots:
+    places whose mean velocity stands out from the area. Gi* has no time term, so a
+    hotspot says where the ground differs, not when that began."""
     verdicts = [analyse_point(p) for p in points]
     verdicts.sort(key=lambda v: v.newsworthiness, reverse=True)
 
@@ -233,41 +240,36 @@ def scan_area(
         [p.best_velocity if p.best_velocity is not None else 0.0 for p in points]
     )
     anomalous = sum(
-        1 for v in verdicts if v.primary_flag is not None and v.primary_flag.is_notable
+        1 for v in verdicts if v.primary_flag is not None and v.primary_flag.is_anomalous
     )
 
     cluster_flags: list[AnomalyFlag] = []
     if len(points) >= 8:
         weights = _spatial_weights(points, cluster_radius_deg)
         gi = stats.getis_ord_gi_star(velocities, weights)
-        # Strong negative z = cluster of subsidence; strong positive = cluster of uplift.
-        sub_idx = int(np.argmin(gi))
-        up_idx = int(np.argmax(gi))
-        if gi[sub_idx] <= -hotspot_z:
+        # Gi* is relative to the area: a high z in a sinking city can still be sinking,
+        # just less. The sign of the local mean decides what the ground actually did.
+        local_mean = (weights @ velocities) / weights.sum(axis=1)
+        for idx in {int(np.argmin(gi)), int(np.argmax(gi))}:
+            if abs(gi[idx]) < hotspot_z:
+                continue
+            local = float(local_mean[idx])
+            if local <= -STABLE_VELOCITY:
+                kind = "subsidence"
+            elif local >= STABLE_VELOCITY:
+                kind = "uplift"
+            else:
+                kind = "relatively_stable"
             cluster_flags.append(
                 AnomalyFlag(
-                    type=AnomalyType.EMERGING_CLUSTER,
-                    magnitude_mm_yr=float(velocities[sub_idx]),
-                    confidence=float(min(0.95, abs(gi[sub_idx]) / 6.0)),
+                    type=AnomalyType.MOTION_HOTSPOT,
+                    magnitude_mm_yr=local,
+                    confidence=float(min(0.95, abs(gi[idx]) / 6.0)),
                     evidence={
-                        "kind": "subsidence",
-                        "gi_z": round(float(gi[sub_idx]), 2),
-                        "center_lon": points[sub_idx].lon,
-                        "center_lat": points[sub_idx].lat,
-                    },
-                )
-            )
-        if gi[up_idx] >= hotspot_z:
-            cluster_flags.append(
-                AnomalyFlag(
-                    type=AnomalyType.EMERGING_CLUSTER,
-                    magnitude_mm_yr=float(velocities[up_idx]),
-                    confidence=float(min(0.95, abs(gi[up_idx]) / 6.0)),
-                    evidence={
-                        "kind": "uplift",
-                        "gi_z": round(float(gi[up_idx]), 2),
-                        "center_lon": points[up_idx].lon,
-                        "center_lat": points[up_idx].lat,
+                        "kind": kind,
+                        "gi_z": round(float(gi[idx]), 2),
+                        "center_lon": points[idx].lon,
+                        "center_lat": points[idx].lat,
                     },
                 )
             )

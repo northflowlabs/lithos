@@ -28,8 +28,10 @@ class TrendResult:
     residual_std_mm: float
 
     @property
-    def uncertainty_mm_yr(self) -> float:
-        """Half-width of the Theil-Sen confidence interval, as a 1-sigma-ish proxy."""
+    def ci95_half_width_mm_yr(self) -> float:
+        """Half-width of the 95% Theil-Sen interval of the slope. It reflects scatter
+        about the trend only: atmosphere that survives in the series, the reference and
+        the datum are not in it."""
         return float(abs(self.slope_high_mm_yr - self.slope_low_mm_yr) / 2.0)
 
     @property
