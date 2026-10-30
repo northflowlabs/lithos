@@ -51,6 +51,9 @@ export interface TimeSeriesSample {
 
 export interface TimeSeries {
   point_id: string;
+  lon?: number;
+  lat?: number;
+  relative_only?: boolean;
   samples: TimeSeriesSample[];
 }
 
@@ -93,9 +96,10 @@ export interface SourceMeta {
 export interface AoiScanResult {
   point_count: number;
   anomalous_count?: number;
-  mean_velocity_mm_yr?: number;
-  max_subsidence_mm_yr?: number;
-  max_uplift_mm_yr?: number;
+  left_out_count?: number;
+  mean_velocity_mm_yr?: number | null;
+  max_subsidence_mm_yr?: number | null;
+  max_uplift_mm_yr?: number | null;
   cluster_flags?: AnomalyFlag[];
   top_points?: PointVerdict[];
   note?: string;

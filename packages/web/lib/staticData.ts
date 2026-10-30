@@ -109,8 +109,13 @@ export const staticData = {
   timeSeries: async (pointId: string): Promise<TimeSeries> => {
     const blob = await timeseriesBlob();
     const disp = blob.series[pointId] ?? [];
+    const fc = await points();
+    const feature = fc.features.find((f) => f.properties.id === pointId);
     return {
       point_id: pointId,
+      lon: feature?.geometry.coordinates[0],
+      lat: feature?.geometry.coordinates[1],
+      relative_only: feature?.properties.relative_only ?? false,
       samples: blob.dates.map((d, i) => ({
         date: d,
         displacement_mm: disp[i] ?? null,
@@ -138,16 +143,16 @@ export const staticData = {
     if (inside.length === 0) {
       return { point_count: 0, note: "No indexed ground-motion points in this area." };
     }
-    // Values that are relative only do not enter the area's statistics.
+    // Values that are relative only do not enter the area's statistics or its ranking.
     const absolute = inside.filter((f) => !f.properties.relative_only);
     const vels = absolute.map((f) => f.properties.best_velocity ?? 0);
-    const anomalous = inside.filter(
+    const anomalous = absolute.filter(
       (f) =>
         f.properties.anomaly_type &&
         !QUIET.includes(f.properties.anomaly_type) &&
         f.properties.anomaly_type !== "steady_motion",
     ).length;
-    const top = [...inside]
+    const top = [...absolute]
       .sort((a, b) => (b.properties.newsworthiness ?? 0) - (a.properties.newsworthiness ?? 0))
       .slice(0, 8)
       .map((f) => ({
@@ -161,12 +166,15 @@ export const staticData = {
     return {
       point_count: inside.length,
       anomalous_count: anomalous,
-      mean_velocity_mm_yr: vels.length ? vels.reduce((a, b) => a + b, 0) / vels.length : undefined,
-      max_subsidence_mm_yr: vels.length ? Math.min(...vels) : undefined,
-      max_uplift_mm_yr: vels.length ? Math.max(...vels) : undefined,
+      left_out_count: inside.length - absolute.length,
+      mean_velocity_mm_yr: vels.length ? vels.reduce((a, b) => a + b, 0) / vels.length : null,
+      max_subsidence_mm_yr: vels.length ? Math.min(...vels) : null,
+      max_uplift_mm_yr: vels.length ? Math.max(...vels) : null,
       cluster_flags: [],
       top_points: top,
-      note: "Hotspot detection needs the LITHOS API; this page serves stored results.",
+      note: absolute.length
+        ? "Hotspot detection needs the LITHOS API; this page serves stored results."
+        : "Every point here is relative only, so the area has no statistics.",
     };
   },
 };

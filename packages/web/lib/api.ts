@@ -96,7 +96,11 @@ export const api = {
 
 // Build a CSV download for a time series client-side, so export works in static mode too.
 export function timeSeriesToCsv(ts: TimeSeries, notes: string[] = []): string {
-  const rows = [...notes.map((n) => `# ${n}`), "date,displacement_mm"];
+  const where =
+    ts.lon === undefined
+      ? []
+      : [`point ${ts.point_id}, lon=${ts.lon}, lat=${ts.lat}, relative_only=${ts.relative_only ?? false}`];
+  const rows = [...[...where, ...notes].map((n) => `# ${n}`), "date,displacement_mm"];
   for (const s of ts.samples) {
     rows.push(`${s.date},${s.displacement_mm ?? ""}`);
   }

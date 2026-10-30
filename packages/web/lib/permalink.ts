@@ -46,7 +46,8 @@ export function decodeState(hash: string): Partial<AppState> | null {
   const lat = parseFloat(parts[1]);
   const zoom = parseFloat(parts[2]);
   if ([lon, lat, zoom].some((n) => Number.isNaN(n))) return null;
-  const layers = parts[3] && parts[3] !== "-" ? decodeLayers(parts[3]) : DEFAULT_LAYERS;
+  // "-" means every layer off; only a missing field falls back to the defaults.
+  const layers = parts[3] ? decodeLayers(parts[3] === "-" ? "" : parts[3]) : DEFAULT_LAYERS;
   const selected = parts[4] ? decodeURIComponent(parts[4]) : null;
   return { lon, lat, zoom, layers, selected };
 }

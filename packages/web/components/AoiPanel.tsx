@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { velocityColor } from "@/lib/colormap";
 import { exportCredits } from "@/lib/credits";
 import type { AoiScanResult } from "@/lib/types";
@@ -30,6 +30,10 @@ const HOTSPOT_LABEL: Record<string, string> = {
 
 export default function AoiPanel({ result, geojson, caveat, onClose }: Props) {
   const empty = result.point_count === 0;
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const rate = (v: number | null | undefined) => (v == null ? "n/a" : `${v.toFixed(1)} mm/yr`);
+
+  useEffect(() => closeRef.current?.focus(), []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -48,6 +52,8 @@ export default function AoiPanel({ result, geojson, caveat, onClose }: Props) {
         mean_velocity_mm_yr: result.mean_velocity_mm_yr,
         max_subsidence_mm_yr: result.max_subsidence_mm_yr,
         max_uplift_mm_yr: result.max_uplift_mm_yr,
+        left_out_count: result.left_out_count,
+        note: result.note,
         credits: exportCredits(caveat),
       },
       features: geojson ? [{ type: "Feature", geometry: geojson, properties: {} }] : [],
@@ -61,7 +67,7 @@ export default function AoiPanel({ result, geojson, caveat, onClose }: Props) {
           <div className="text-[10px] uppercase tracking-widest text-ink-400">Area scan</div>
           <div className="text-sm text-paper">{result.point_count} points</div>
         </div>
-        <button onClick={onClose} aria-label="Close panel" className="text-ink-200 hover:text-paper text-lg px-2">
+        <button ref={closeRef} onClick={onClose} aria-label="Close panel" className="text-ink-200 hover:text-paper text-lg px-2">
           ×
         </button>
       </header>
@@ -72,13 +78,19 @@ export default function AoiPanel({ result, geojson, caveat, onClose }: Props) {
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3">
-              <Stat label="Mean velocity" value={`${result.mean_velocity_mm_yr?.toFixed(1)} mm/yr`} color={velocityColor(result.mean_velocity_mm_yr)} />
+              <Stat label="Mean velocity" value={rate(result.mean_velocity_mm_yr)} color={velocityColor(result.mean_velocity_mm_yr)} />
               <Stat label="Changed behaviour" value={`${result.anomalous_count}`} />
-              <Stat label="Max subsidence" value={`${result.max_subsidence_mm_yr?.toFixed(1)} mm/yr`} color={velocityColor(result.max_subsidence_mm_yr)} />
-              <Stat label="Max uplift" value={`${result.max_uplift_mm_yr?.toFixed(1)} mm/yr`} color={velocityColor(result.max_uplift_mm_yr)} />
+              <Stat label="Max subsidence" value={rate(result.max_subsidence_mm_yr)} color={velocityColor(result.max_subsidence_mm_yr)} />
+              <Stat label="Max uplift" value={rate(result.max_uplift_mm_yr)} color={velocityColor(result.max_uplift_mm_yr)} />
             </div>
 
             {result.note && <p className="text-xs text-ink-200">{result.note}</p>}
+            {!!result.left_out_count && (
+              <p className="text-xs text-ink-200">
+                {result.left_out_count} of {result.point_count} points are relative only and left out
+                of these figures.
+              </p>
+            )}
             {caveat && <p className="text-xs text-ink-200">{caveat}</p>}
 
             {result.cluster_flags && result.cluster_flags.length > 0 && (

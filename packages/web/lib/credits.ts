@@ -9,7 +9,7 @@ export const OGL_URL = "http://www.nationalarchives.gov.uk/doc/open-government-l
 export const CEDA_URL = "https://catalogue.ceda.ac.uk/uuid/52cda2e0e6c04272ae15ac836c1e8493";
 
 export const GNSS_CREDIT =
-  "GNSS: Blewitt, G., W. C. Hammond, and C. Kreemer (2018), Eos, 99, doi:10.1029/2018EO104623.";
+  "GNSS: Blewitt, G., W. C. Hammond, and C. Kreemer (2018), Eos, 99, doi:10.1029/2018EO104623. BOLG, University of Bologna; BLGN, INGV; MEDI, ASI.";
 
 export const EGMS_NOTICE =
   "Contains modified Copernicus data. European Ground Motion Service, Copernicus Land Monitoring Service.";

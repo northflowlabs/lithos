@@ -198,6 +198,11 @@ export default function MapView(props: MapViewProps) {
       applyLayers(map, propsRef.current.layers);
       map.setFilter("points-selected", ["==", ["get", "id"], propsRef.current.selectedId ?? "___none___"]);
 
+      // The full credit is long. It opens from the (i) button; the legend carries a short one.
+      containerRef.current
+        ?.querySelector(".maplibregl-ctrl-attrib")
+        ?.classList.remove("maplibregl-compact-show");
+
       propsRef.current.onMapReady(map);
       // Initial extent callback so the page can fetch points.
       const c = map.getCenter();

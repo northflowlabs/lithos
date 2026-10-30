@@ -13,7 +13,8 @@ import { PointList } from "@/components/PointList";
 import PointPanel from "@/components/PointPanel";
 import { SearchBox } from "@/components/SearchBox";
 import { api } from "@/lib/api";
-import { ESRI_CREDIT, LICSAR_ACK, OGL_URL } from "@/lib/credits";
+import { MOTION_STOPS } from "@/lib/colormap";
+import { ESRI_CREDIT, GNSS_CREDIT, LICSAR_ACK, OGL_URL } from "@/lib/credits";
 import { DEFAULT_LAYERS, decodeState, encodeState, writeHash } from "@/lib/permalink";
 import type { AoiScanResult, PointProperties } from "@/lib/types";
 
@@ -147,6 +148,7 @@ export default function Page() {
     const lines = [
       LICSAR_ACK,
       `Licence: Open Government Licence v3.0, ${OGL_URL}`,
+      GNSS_CREDIT,
       `Tiles: ${ESRI_CREDIT}. Map: LITHOS.`,
       ...(hero.data?.caveat ? [hero.data.caveat] : []),
     ].flatMap((text) => wrap(ctx, text, canvas.width - 16 * scale));
@@ -155,6 +157,21 @@ export default function Page() {
     ctx.fillRect(0, canvas.height - height, canvas.width, height);
     ctx.fillStyle = "#f6f4ef";
     lines.forEach((line, i) => ctx.fillText(line, 8 * scale, canvas.height - height + (i + 1) * size * 1.3));
+
+    // The colour scale, so the picture can be read on its own.
+    const barWidth = Math.min(160 * scale, canvas.width / 2);
+    const barX = 8 * scale;
+    const barY = 8 * scale;
+    ctx.fillStyle = "rgba(11,14,18,0.8)";
+    ctx.fillRect(0, 0, barWidth + 16 * scale, 42 * scale);
+    const ramp = ctx.createLinearGradient(barX, 0, barX + barWidth, 0);
+    MOTION_STOPS.forEach((stop) => ramp.addColorStop((stop.v + 20) / 40, stop.color));
+    ctx.fillStyle = ramp;
+    ctx.fillRect(barX, barY, barWidth, 8 * scale);
+    ctx.fillStyle = "#f6f4ef";
+    ctx.fillText("-20", barX, barY + 20 * scale);
+    ctx.fillText("+20 mm/yr vertical", barX + barWidth - ctx.measureText("+20 mm/yr vertical").width, barY + 20 * scale);
+    ctx.fillText("red sinks, blue rises", barX, barY + 32 * scale);
     const url = canvas.toDataURL("image/png");
     const a = document.createElement("a");
     a.href = url;
@@ -252,7 +269,7 @@ export default function Page() {
 
       {aoi && <AoiPanel result={aoi.result} geojson={aoi.geo} caveat={hero.data?.caveat} onClose={() => setAoi(null)} />}
 
-      <footer className="pointer-events-none absolute bottom-1 right-2 z-10 hidden text-[10px] text-ink-200 sm:block">
+      <footer className="pointer-events-none absolute bottom-1 right-12 z-10 hidden rounded bg-ink-900/70 px-1.5 text-[10px] text-ink-200 sm:block">
         LITHOS · dry-land motion only
       </footer>
     </main>

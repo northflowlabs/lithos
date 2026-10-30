@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { api, timeSeriesToCsv } from "@/lib/api";
 import { velocityColor } from "@/lib/colormap";
 import { exportCredits } from "@/lib/credits";
@@ -47,6 +47,9 @@ export default function PointPanel({ pointId, properties, permalink, caveat, onC
   const failed = ts.isError || verdict.isError;
   const missing = !failed && !ts.isLoading && !verdict.isLoading && v === null && !headline;
 
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => closeRef.current?.focus(), [pointId]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -63,6 +66,7 @@ export default function PointPanel({ pointId, properties, permalink, caveat, onC
           <div className="font-mono text-sm text-paper">{pointId}</div>
         </div>
         <button
+          ref={closeRef}
           onClick={onClose}
           aria-label="Close panel"
           className="text-ink-200 hover:text-paper text-lg leading-none px-2"
@@ -82,7 +86,9 @@ export default function PointPanel({ pointId, properties, permalink, caveat, onC
             <span className="text-3xl font-semibold" style={{ color: velocityColor(v) }}>
               {v === null ? "n/a" : `${v > 0 ? "+" : ""}${v.toFixed(1)}`}
             </span>
-            <span className="text-sm text-ink-200">mm/year, vertical</span>
+            <span className="text-sm text-ink-200">
+              mm/year, vertical{properties?.relative_only ? ", relative only" : ""}
+            </span>
           </div>
           {properties?.velocity_uncertainty != null && (
             <div className="text-xs text-ink-200">
