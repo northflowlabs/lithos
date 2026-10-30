@@ -146,12 +146,14 @@ export const staticData = {
     // Values that are relative only do not enter the area's statistics or its ranking.
     const absolute = inside.filter((f) => !f.properties.relative_only);
     const vels = absolute.map((f) => f.properties.best_velocity ?? 0);
-    const anomalous = absolute.filter(
-      (f) =>
-        f.properties.anomaly_type &&
-        !QUIET.includes(f.properties.anomaly_type) &&
-        f.properties.anomaly_type !== "steady_motion",
-    ).length;
+    const anomalous = absolute.length
+      ? absolute.filter(
+          (f) =>
+            f.properties.anomaly_type &&
+            !QUIET.includes(f.properties.anomaly_type) &&
+            f.properties.anomaly_type !== "steady_motion",
+        ).length
+      : null;
     const top = [...absolute]
       .sort((a, b) => (b.properties.newsworthiness ?? 0) - (a.properties.newsworthiness ?? 0))
       .slice(0, 8)

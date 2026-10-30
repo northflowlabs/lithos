@@ -64,6 +64,7 @@ def test_an_area_of_relative_points_has_no_numbers():
     body = client.post("/v1/aoi/scan", json={"geometry": polygon}).json()
     assert body["point_count"] > 100
     assert body["left_out_count"] == body["point_count"]
+    assert body["anomalous_count"] is None
     assert body["mean_velocity_mm_yr"] is None and body["max_uplift_mm_yr"] is None
     assert body["top_points"] == []
     assert body["note"]

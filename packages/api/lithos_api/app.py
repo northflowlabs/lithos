@@ -237,7 +237,7 @@ def create_app() -> FastAPI:
         if not inside:
             return {
                 "point_count": 0,
-                "anomalous_count": 0,
+                "anomalous_count": None,
                 "note": "No indexed ground-motion points in this area.",
             }
         result = cat.scan_aoi(inside)

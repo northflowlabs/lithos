@@ -224,7 +224,7 @@ def analyse_point(point: MeasurementPoint) -> PointVerdict:
 @dataclass
 class AreaScanResult:
     point_count: int
-    anomalous_count: int
+    anomalous_count: int | None  # None when no usable point remains
     mean_velocity_mm_yr: float | None  # None when no usable point remains
     max_subsidence_mm_yr: float | None
     max_uplift_mm_yr: float | None
@@ -281,8 +281,10 @@ def scan_area(
     velocities = np.array(
         [p.best_velocity if p.best_velocity is not None else 0.0 for p in points]
     )
-    anomalous = sum(
-        1 for v in verdicts if v.primary_flag is not None and v.primary_flag.is_anomalous
+    anomalous = (
+        sum(1 for v in verdicts if v.primary_flag is not None and v.primary_flag.is_anomalous)
+        if points
+        else None
     )
 
     cluster_flags: list[AnomalyFlag] = []

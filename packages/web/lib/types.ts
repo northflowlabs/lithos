@@ -95,7 +95,7 @@ export interface SourceMeta {
 
 export interface AoiScanResult {
   point_count: number;
-  anomalous_count?: number;
+  anomalous_count?: number | null;
   left_out_count?: number;
   mean_velocity_mm_yr?: number | null;
   max_subsidence_mm_yr?: number | null;

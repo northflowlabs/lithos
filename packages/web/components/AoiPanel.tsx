@@ -48,7 +48,7 @@ export default function AoiPanel({ result, geojson, caveat, onClose }: Props) {
       type: "FeatureCollection",
       properties: {
         point_count: result.point_count,
-        anomalous_count: result.anomalous_count,
+        anomalous_count: result.anomalous_count ?? null,
         mean_velocity_mm_yr: result.mean_velocity_mm_yr,
         max_subsidence_mm_yr: result.max_subsidence_mm_yr,
         max_uplift_mm_yr: result.max_uplift_mm_yr,
@@ -79,7 +79,7 @@ export default function AoiPanel({ result, geojson, caveat, onClose }: Props) {
           <>
             <div className="grid grid-cols-2 gap-3">
               <Stat label="Mean velocity" value={rate(result.mean_velocity_mm_yr)} color={velocityColor(result.mean_velocity_mm_yr)} />
-              <Stat label="Changed behaviour" value={`${result.anomalous_count}`} />
+              <Stat label="Changed behaviour" value={`${result.anomalous_count ?? "n/a"}`} />
               <Stat label="Max subsidence" value={rate(result.max_subsidence_mm_yr)} color={velocityColor(result.max_subsidence_mm_yr)} />
               <Stat label="Max uplift" value={rate(result.max_uplift_mm_yr)} color={velocityColor(result.max_uplift_mm_yr)} />
             </div>

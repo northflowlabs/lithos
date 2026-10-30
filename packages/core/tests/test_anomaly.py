@@ -171,4 +171,5 @@ def test_an_area_of_only_relative_points_has_no_statistics():
     assert result["mean_velocity_mm_yr"] is None
     assert result["max_uplift_mm_yr"] is None
     assert result["left_out_count"] == 1
+    assert result["anomalous_count"] is None
     assert "relative only" in result["note"]

@@ -49,7 +49,7 @@ Every flag carries:
    that began, and a high z in a sinking area may only mean sinking less. The local mean
    decides the reported kind: subsidence, uplift or relatively stable.
 3. **Changed behaviour** counts points whose trend changed. Steady motion is notable but
-   does not count.
+   does not count. An area with no usable point has no count: `anomalous_count` is null.
 
 Trend intervals are 95% Theil-Sen intervals. They reflect scatter about the trend, not
 remaining atmosphere, the reference or the GNSS tie.
