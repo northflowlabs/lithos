@@ -32,6 +32,7 @@ STABLE_VELOCITY = 2.0  # |velocity| below this is treated as not moving
 ACCEL_DELTA = 4.0  # change in slope across a change-point to call "acceleration"
 MIN_COHERENCE = 0.4  # below this, downweight confidence
 MIN_SAMPLES = 12  # need at least this many epochs to analyse
+MIN_SEGMENT_DAYS = 365  # a slope needs a full seasonal cycle on either side of a change
 
 
 def _epoch_days(ts_dates: list[date]) -> np.ndarray:
@@ -51,6 +52,10 @@ def _quality_factor(point: MeasurementPoint) -> float:
     if q >= MIN_COHERENCE:
         return float(0.6 + 0.4 * min(1.0, (q - MIN_COHERENCE) / (1.0 - MIN_COHERENCE)))
     return float(0.4 * (q / MIN_COHERENCE))
+
+
+def _datum(point: MeasurementPoint) -> str | None:
+    return f"GNSS station {point.ref_point_id}" if point.ref_point_id else None
 
 
 def _classify_change(before: float, after: float) -> AnomalyType:
@@ -74,7 +79,7 @@ def analyse_point(point: MeasurementPoint) -> PointVerdict:
     ts = point.time_series
     velocity = point.best_velocity
 
-    if ts is None or len(ts.samples) < MIN_SAMPLES:
+    if ts is None or len(ts.dates) < MIN_SAMPLES:
         # Not enough history to say anything about change; report velocity if known.
         flag = AnomalyFlag(
             type=AnomalyType.INCONCLUSIVE
@@ -89,7 +94,7 @@ def analyse_point(point: MeasurementPoint) -> PointVerdict:
             velocity_mm_yr=velocity,
             velocity_uncertainty_mm_yr=point.velocity_uncertainty,
             flags=[flag],
-            headline=headline_for(flag, velocity),
+            headline=headline_for(flag, velocity, None, point.velocity_uncertainty, _datum(point)),
             newsworthiness=abs(velocity or 0.0) * 0.1,
         )
 
@@ -102,7 +107,11 @@ def analyse_point(point: MeasurementPoint) -> PointVerdict:
     seasonal = stats.harmonic_decompose(t_days, y)
     # Detect regime changes on the de-seasonalised series so an annual swing is not
     # misread as a trend change.
-    change_points = stats.detect_change_points(t_days, seasonal.deseasonalised)
+    span_per_date = float(t_days[-1] - t_days[0]) / max(len(t_days) - 1, 1)
+    min_segment = max(10, int(np.ceil(MIN_SEGMENT_DAYS / max(span_per_date, 1.0))))
+    change_points = stats.detect_change_points(
+        t_days, seasonal.deseasonalised, min_segment=min_segment
+    )
 
     secular = seasonal.secular_slope_mm_yr
     obs_velocity = velocity if velocity is not None else trend.slope_mm_yr
@@ -167,6 +176,23 @@ def analyse_point(point: MeasurementPoint) -> PointVerdict:
             )
 
     primary = max(flags, key=lambda f: (f.is_notable, f.confidence))
+    if point.datum_note:
+        primary = AnomalyFlag(
+            type=AnomalyType.RELATIVE_ONLY,
+            magnitude_mm_yr=obs_velocity,
+            confidence=float(0.4 * qf),
+            evidence={"reason": "datum_contradicted", "note": point.datum_note},
+        )
+        flags = [primary]
+    elif point.verdict_robust is False:
+        # The class changed when the build varied the processing, so it is not published.
+        primary = AnomalyFlag(
+            type=AnomalyType.INCONCLUSIVE,
+            magnitude_mm_yr=obs_velocity,
+            confidence=float(0.4 * qf),
+            evidence={"reason": "changed_under_robustness_test"},
+        )
+        flags = [primary]
     accel_factor = 1.0
     if primary.type in (
         AnomalyType.ACCELERATING_SUBSIDENCE,
@@ -176,17 +202,19 @@ def analyse_point(point: MeasurementPoint) -> PointVerdict:
     ):
         accel_factor = 2.0
     newsworthiness = float(abs(obs_velocity) * accel_factor * qf)
+    interval = round(
+        point.velocity_uncertainty
+        if point.velocity_uncertainty is not None
+        else trend.ci95_half_width_mm_yr,
+        2,
+    )
 
     return PointVerdict(
         point_id=point.id,
         velocity_mm_yr=round(obs_velocity, 2),
-        velocity_uncertainty_mm_yr=(
-            round(point.velocity_uncertainty, 2)
-            if point.velocity_uncertainty is not None
-            else round(trend.ci95_half_width_mm_yr, 2)
-        ),
+        velocity_uncertainty_mm_yr=interval,
         flags=flags,
-        headline=headline_for(primary, obs_velocity, period),
+        headline=headline_for(primary, obs_velocity, period, interval, _datum(point)),
         newsworthiness=newsworthiness,
     )
 
@@ -236,6 +264,8 @@ def scan_area(
     verdicts = [analyse_point(p) for p in points]
     verdicts.sort(key=lambda v: v.newsworthiness, reverse=True)
 
+    # Values that are relative only do not enter the area's statistics.
+    points = [p for p in points if not p.datum_note]
     velocities = np.array(
         [p.best_velocity if p.best_velocity is not None else 0.0 for p in points]
     )
@@ -275,7 +305,7 @@ def scan_area(
             )
 
     return AreaScanResult(
-        point_count=len(points),
+        point_count=len(verdicts),
         anomalous_count=anomalous,
         mean_velocity_mm_yr=float(np.mean(velocities)) if len(velocities) else 0.0,
         max_subsidence_mm_yr=float(np.min(velocities)) if len(velocities) else 0.0,

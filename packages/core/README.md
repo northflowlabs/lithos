@@ -13,7 +13,7 @@ from lithos_core.schema import MeasurementPoint, TimeSeries
 from lithos_core.anomaly import analyse_point, scan_area
 
 verdict = analyse_point(point)
-print(verdict.headline)   # "This point has been sinking about 14 mm/year and accelerated after early 2023."
+print(verdict.headline)   # "This point sank steadily at about 14 ± 2 mm per year (95% interval) from ..."
 ```
 
 See [`docs/anomaly-engine.md`](../../docs/anomaly-engine.md) for the method and the

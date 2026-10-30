@@ -141,3 +141,22 @@ def test_a_hotspot_reports_the_ground_it_saw():
     flags = scan_area(points).cluster_flags
     assert flags
     assert all(f.evidence["kind"] != "uplift" for f in flags)
+
+
+def test_a_contradicted_datum_gives_a_relative_sentence_and_no_motion_claim():
+    p = labelled_events.steady_subsidence(_rng(), rate_mm_yr=8.0)
+    p.datum_note = "GNSS east of here disagrees, so this is not absolute motion."
+    v = analyse_point(p)
+    assert v.primary_flag.type == AnomalyType.RELATIVE_ONLY
+    assert "rose" not in v.headline and "reads" in v.headline
+    assert "not absolute" in v.headline
+    assert v.primary_flag.is_notable is False
+
+
+def test_relative_points_stay_out_of_area_statistics():
+    a = labelled_events.steady_subsidence(_rng(), rate_mm_yr=-10.0, point_id="a")
+    b = labelled_events.steady_subsidence(_rng(), rate_mm_yr=9.0, point_id="b")
+    b.datum_note = "relative only"
+    result = scan_area([a, b])
+    assert result.point_count == 2
+    assert result.max_uplift_mm_yr < 0

@@ -51,6 +51,31 @@ def test_closure_removes_the_pair_that_breaks_most_loops():
     assert np.allclose(solved.displacement_mm, truth, atol=1e-6)
 
 
+def test_injected_unwrapping_errors_are_found():
+    rng = np.random.default_rng(11)
+    truth = np.cumsum(rng.normal(-1.0, 1.0, 40))
+    truth -= truth[0]
+    pairs = np.array([[i, j] for i in range(40) for j in range(i + 1, min(i + 5, 40))])
+    triplets = find_triplets(pairs)
+    for _ in range(50):
+        los = truth[pairs[:, 1]] - truth[pairs[:, 0]] + rng.normal(0, 0.5, len(pairs))
+        bad = rng.choice(len(pairs), 6, replace=False)
+        los[bad] += rng.choice([-2, -1, 1, 2], 6) * CYCLE_MM
+        solved = invert_network(pairs, los, 40, triplets)
+        assert np.abs(solved.displacement_mm - (truth - truth[0])).max() < 3.0
+
+
+def test_a_tied_closure_failure_drops_the_pair_with_least_support():
+    # Pair 1 (1 to 2) is bad and sits in one failing loop, tied with both others there, but
+    # those two also close a loop each, so only pair 1 goes.
+    pairs = np.array([[0, 1], [1, 2], [0, 2], [0, 3], [2, 3], [1, 3]])
+    truth = np.array([0.0, -2.0, -5.0, -6.0])
+    los = truth[pairs[:, 1]] - truth[pairs[:, 0]]
+    los[1] += CYCLE_MM
+    solved = invert_network(pairs, los, 4)
+    assert np.allclose(solved.displacement_mm, truth, atol=1e-6)
+
+
 def test_a_split_network_is_reported():
     pairs = np.array([[0, 1], [1, 2], [0, 2], [3, 4]])
     solved = invert_network(pairs, np.array([1.0, 1.0, 2.0, 9.0]), 5)

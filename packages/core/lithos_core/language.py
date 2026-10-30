@@ -1,8 +1,8 @@
 """Plain-language generation for anomaly flags.
 
-One calm, precise, quotable sentence per verdict. No alarmism, no failure forecasting.
-A journalist should be able to paste it as is. Measurements end on a known date, so every
-sentence is in the past tense and names its period.
+One calm sentence per verdict, carrying its period, its 95% interval and what it is relative
+to. No alarmism, no failure forecasting. It is a summary of one point; the scene's note says how
+far absolute values can be trusted, and that note must travel with any quote.
 """
 
 from __future__ import annotations
@@ -18,9 +18,11 @@ def _season_phrase(d: date) -> str:
     return f"{part} {d.year}"
 
 
-def _rate(mm_yr: float | None) -> str:
+def _rate(mm_yr: float | None, interval: float | None = None) -> str:
     if mm_yr is None:
         return "an unknown rate"
+    if interval is not None:
+        return f"about {abs(mm_yr):.0f} ± {interval:.0f} mm per year (95% interval)"
     return f"about {abs(mm_yr):.0f} mm per year"
 
 
@@ -38,10 +40,13 @@ def headline_for(
     flag: AnomalyFlag,
     velocity_mm_yr: float | None,
     period: tuple[date, date] | None = None,
+    interval: float | None = None,
+    datum: str | None = None,
 ) -> str:
     """Build the human sentence for a point's primary flag."""
-    rate = _rate(velocity_mm_yr)
+    rate = _rate(velocity_mm_yr, interval)
     when = _period(period)
+    relative = f"with the datum tied to {datum} " if datum else ""
     onset = _season_phrase(flag.onset_date) if flag.onset_date else "mid-window"
     before = flag.evidence.get("slope_before_mm_yr")
     after = flag.evidence.get("slope_after_mm_yr", flag.magnitude_mm_yr)
@@ -78,18 +83,23 @@ def headline_for(
 
     if flag.type == AnomalyType.STEADY_MOTION:
         verb = "sank" if (velocity_mm_yr or 0) < 0 else "rose"
-        return f"This point {verb} steadily at {rate} {when}."
+        return f"This point {verb} steadily at {rate} {relative}{when}."
 
     if flag.type == AnomalyType.INCONCLUSIVE:
         return (
-            f"This point moved {rate} {when}, but that trend cannot be told apart from "
-            "the scatter in its measurements."
+            f"This point moved {rate} {relative}{when}, but the trend is not firm: it cannot "
+            "be told apart from scatter, or it changed when the processing was varied."
         )
+
+    if flag.type == AnomalyType.RELATIVE_ONLY:
+        sign = "+" if (velocity_mm_yr or 0) >= 0 else "-"
+        reading = rate.replace("about ", f"about {sign}", 1)
+        return f"This point reads {reading} {relative}{when}. {flag.evidence.get('note', '')}".strip()
 
     if flag.type == AnomalyType.MOTION_HOTSPOT:
         return f"This area stood out from its surroundings in mean velocity {when}."
 
-    return f"This point showed no significant motion {when}."
+    return f"This point showed no significant motion {relative}{when}."
 
 
 def confidence_word(confidence: float) -> str:

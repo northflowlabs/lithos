@@ -40,6 +40,7 @@ class AnomalyType(str, Enum):
     MOTION_HOTSPOT = "motion_hotspot"
     STEADY_MOTION = "steady_motion"
     INCONCLUSIVE = "inconclusive"
+    RELATIVE_ONLY = "relative_only"
     STABLE = "stable"
 
 
@@ -47,7 +48,7 @@ class TimeSeriesSample(BaseModel):
     """One epoch of a displacement time series."""
 
     date: date
-    displacement_mm: float
+    displacement_mm: float | None = None  # None marks a date with no solution
     uncertainty_mm: float | None = None
 
 
@@ -64,11 +65,12 @@ class TimeSeries(BaseModel):
 
     @property
     def dates(self) -> list[date]:
-        return [s.date for s in self.samples]
+        """The dates with a solution."""
+        return [s.date for s in self.samples if s.displacement_mm is not None]
 
     @property
     def displacements(self) -> list[float]:
-        return [s.displacement_mm for s in self.samples]
+        return [s.displacement_mm for s in self.samples if s.displacement_mm is not None]
 
 
 class MeasurementPoint(BaseModel):
@@ -90,7 +92,11 @@ class MeasurementPoint(BaseModel):
     source: str = "unknown"
     product: str = "unknown"
     processing_window: str | None = None  # e.g. "2019-2023"
-    ref_point_id: str | None = None
+    ref_point_id: str | None = None  # what the velocity is relative to, e.g. a GNSS station
+    # False when the verdict changed under the build's robustness test; None when untested.
+    verdict_robust: bool | None = None
+    # Set where independent data disagrees with the datum, so the value is relative only.
+    datum_note: str | None = None
 
     time_series: TimeSeries | None = None
 
@@ -153,7 +159,11 @@ class AnomalyFlag(BaseModel):
     def is_notable(self) -> bool:
         """Notable = the ground is doing something worth a human's attention. Steady
         motion at a real rate counts; stable ground and an unclear trend do not."""
-        return self.type not in (AnomalyType.STABLE, AnomalyType.INCONCLUSIVE)
+        return self.type not in (
+            AnomalyType.STABLE,
+            AnomalyType.INCONCLUSIVE,
+            AnomalyType.RELATIVE_ONLY,
+        )
 
     @property
     def is_anomalous(self) -> bool:

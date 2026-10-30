@@ -140,9 +140,11 @@ def detect_change_points(
 
         F = (improvement / 2) / (RSS_two_segments / (n - 4))
 
-    A split survives only if F exceeds `penalty` (a conservative critical value, well
-    above the ~7 you would expect by chance at n in the low hundreds, so we miss
-    marginal splits rather than invent them). Recurse into each segment.
+    InSAR residuals are autocorrelated, so the dates are worth fewer independent samples
+    than their count. F is scaled by (1 - r) / (1 + r), the effective-sample ratio for lag-1
+    autocorrelation r of the single-line residuals. A split survives only if the scaled F
+    exceeds `penalty`, a screening threshold, not a stated significance level: scene builds
+    add a robustness test on top. Recurse into each segment.
 
     For best results pass a de-seasonalised series so an annual swing is not mistaken
     for a trend change. This is the classic binary-segmentation algorithm (Scott and
@@ -158,6 +160,16 @@ def detect_change_points(
         pred = slope * ts + intercept
         return float(np.sum((ys - pred) ** 2))
 
+    def _independence(ts: np.ndarray, ys: np.ndarray) -> float:
+        """Share of the dates that count as independent, from lag-1 autocorrelation."""
+        residual = ys - np.polyval(np.polyfit(ts, ys, 1), ts)
+        denom = float(residual @ residual)
+        if denom <= 0:
+            return 1.0
+        r = float(residual[:-1] @ residual[1:]) / denom
+        r = min(max(r, 0.0), 0.95)
+        return (1.0 - r) / (1.0 + r)
+
     def _recurse(lo: int, hi: int, depth: int) -> None:
         if depth >= max_points or (hi - lo) < 2 * min_segment:
             return
@@ -166,6 +178,7 @@ def detect_change_points(
         if base <= 0:
             return
         best_idx, best_stat = -1, 0.0
+        independence = _independence(ts, ys)
         for k in range(min_segment, (hi - lo) - min_segment):
             left = _rss(ts[:k], ys[:k])
             right = _rss(ts[k:], ys[k:])
@@ -173,7 +186,7 @@ def detect_change_points(
             n = hi - lo
             # Proper nested-model F-test: 2 extra params for the second segment.
             denom = (left + right) / max(n - 4, 1)
-            stat = (improvement / 2.0) / denom if denom > 0 else 0.0
+            stat = independence * (improvement / 2.0) / denom if denom > 0 else 0.0
             if stat > best_stat:
                 best_stat, best_idx = stat, lo + k
         if best_idx >= 0 and best_stat >= penalty:
@@ -204,8 +217,8 @@ def getis_ord_gi_star(
 
     `values` is length n; `weights` is an n x n spatial weights matrix (row i gives the
     neighbourhood of point i, including i itself). Returns a z-score per point: large
-    positive = a cluster of high values (e.g. strong subsidence), large negative = a
-    cluster of low values. Standard spatial statistics (Getis and Ord, 1992).
+    positive = a cluster of high values (e.g. uplift), large negative = a cluster of low
+    values (e.g. subsidence). Standard spatial statistics (Getis and Ord, 1992).
     """
     n = len(values)
     x_bar = float(np.mean(values))

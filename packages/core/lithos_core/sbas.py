@@ -62,11 +62,16 @@ def _reject_by_closure(los_mm: np.ndarray, triplets: np.ndarray, ok: np.ndarray)
         if loops.size == 0:
             return rejected
         closure = los_mm[loops[:, 0]] + los_mm[loops[:, 1]] - los_mm[loops[:, 2]]
-        broken = loops[np.abs(closure) > CYCLE_MM / 2.0]
-        if broken.size == 0:
+        failing = np.abs(closure) > CYCLE_MM / 2.0
+        if not failing.any():
             return rejected
-        ok[np.bincount(broken.ravel(), minlength=ok.size).argmax()] = False
-        rejected += 1
+        fails = np.bincount(loops[failing].ravel(), minlength=ok.size)
+        worst = np.flatnonzero(fails == fails.max())
+        if worst.size > 1:  # a tie: a pair in more loops that close is less likely the bad one
+            closes = np.bincount(loops[~failing].ravel(), minlength=ok.size)
+            worst = worst[closes[worst] == closes[worst].min()]
+        ok[worst] = False  # still tied, nothing tells them apart, so none is trusted
+        rejected += int(worst.size)
 
 
 def _subsets(pairs: np.ndarray, n_epochs: int) -> tuple[np.ndarray, int]:
