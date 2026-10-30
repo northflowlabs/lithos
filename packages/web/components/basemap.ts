@@ -1,4 +1,5 @@
 import type { StyleSpecification } from "maplibre-gl";
+import { EGMS_NOTICE, ESRI_CREDIT, GNSS_CREDIT, LICSAR_ACK, OGL_URL } from "@/lib/credits";
 
 // Esri ArcGIS Online canvas tiles, which need no API key. Either can be replaced with
 // NEXT_PUBLIC_BASEMAP_LIGHT or NEXT_PUBLIC_BASEMAP_DARK ({z}/{x}/{y} or {z}/{y}/{x} URL).
@@ -6,8 +7,7 @@ const esri = (service: string) => `https://server.arcgisonline.com/ArcGIS/rest/s
 const LIGHT = process.env.NEXT_PUBLIC_BASEMAP_LIGHT || esri("World_Light_Gray_Base");
 const DARK = process.env.NEXT_PUBLIC_BASEMAP_DARK || esri("World_Dark_Gray_Base");
 
-const ATTRIBUTION =
-  'Tiles: <a href="https://www.esri.com">Esri</a>, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, and the GIS user community. LiCSAR contains modified Copernicus Sentinel data 2021 to 2024 analysed by COMET; uses <a href="http://jasmin.ac.uk">JASMIN</a>. Where EGMS tiles are shown: contains modified Copernicus data, European Ground Motion Service.';
+const ATTRIBUTION = `Tiles: ${ESRI_CREDIT}. ${LICSAR_ACK} <a href="${OGL_URL}">Open Government Licence v3.0</a>. ${GNSS_CREDIT} Where EGMS tiles are shown: ${EGMS_NOTICE}`;
 
 // A minimal raster basemap style. No Mapbox token, no vendor lock-in. The data layers
 // (points, coverage) are added programmatically on top.

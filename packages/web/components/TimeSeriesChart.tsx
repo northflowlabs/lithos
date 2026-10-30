@@ -37,17 +37,28 @@ export default function TimeSeriesChart({ series, onset, width = 320, height = 1
 
     // A date with no solution, or a long stretch between dates, is a gap in the line.
     let path = "";
+    const dots: { x: number; y: number }[] = [];
+    let run: { x: number; y: number }[] = [];
     let previous: number | null = null;
+    const closeRun = () => {
+      if (run.length === 1) dots.push(run[0]);
+      run = [];
+    };
     for (const s of series.samples) {
       if (s.displacement_mm === null) {
+        closeRun();
         previous = null;
         continue;
       }
       const t = new Date(s.date).getTime();
       const joined = previous !== null && t - previous <= MAX_JOIN_MS;
-      path += `${joined ? "L" : "M"}${px(t).toFixed(1)},${py(s.displacement_mm).toFixed(1)} `;
+      if (!joined) closeRun();
+      const at = { x: px(t), y: py(s.displacement_mm) };
+      path += `${joined ? "L" : "M"}${at.x.toFixed(1)},${at.y.toFixed(1)} `;
+      run.push(at);
       previous = t;
     }
+    closeRun();
 
     const zeroY = py(0);
     const onsetX = onset ? px(new Date(onset).getTime()) : null;
@@ -61,13 +72,13 @@ export default function TimeSeriesChart({ series, onset, width = 320, height = 1
       yearTicks.push({ label: String(yr), x: px(new Date(`${yr}-01-01`).getTime()) });
     }
 
-    return { path, zeroY, onsetX, ticks, yearTicks, pad };
+    return { path, dots, zeroY, onsetX, ticks, yearTicks, pad };
   }, [series, onset, width, height]);
 
   if (!geom) return <div className="text-xs text-ink-200">No time series.</div>;
 
   return (
-    <svg width={width} height={height} role="img" aria-label={`Displacement time series, ${series.samples.length} dates`}>
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" role="img" aria-label={`Displacement time series, ${series.samples.length} dates`}>
       <rect x={0} y={0} width={width} height={height} fill="transparent" />
       {/* y gridlines */}
       {geom.ticks.map((t, i) => (
@@ -103,8 +114,14 @@ export default function TimeSeriesChart({ series, onset, width = 320, height = 1
           {t.label}
         </text>
       ))}
+      <text x={4} y={8} fontSize={8} fill="#aab3bd">
+        mm
+      </text>
       {/* the series */}
       <path d={geom.path} fill="none" stroke="#e9e6df" strokeWidth={1.4} />
+      {geom.dots.map((d, i) => (
+        <circle key={i} cx={d.x} cy={d.y} r={1.6} fill="#e9e6df" />
+      ))}
     </svg>
   );
 }

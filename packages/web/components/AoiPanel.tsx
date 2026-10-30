@@ -2,11 +2,13 @@
 
 import { useEffect } from "react";
 import { velocityColor } from "@/lib/colormap";
+import { exportCredits } from "@/lib/credits";
 import type { AoiScanResult } from "@/lib/types";
 
 interface Props {
   result: AoiScanResult;
   geojson: { type: "Polygon"; coordinates: number[][][] } | null;
+  caveat?: string | null;
   onClose: () => void;
 }
 
@@ -26,7 +28,7 @@ const HOTSPOT_LABEL: Record<string, string> = {
   relatively_stable: "Steadier than its surroundings",
 };
 
-export default function AoiPanel({ result, geojson, onClose }: Props) {
+export default function AoiPanel({ result, geojson, caveat, onClose }: Props) {
   const empty = result.point_count === 0;
 
   useEffect(() => {
@@ -46,6 +48,7 @@ export default function AoiPanel({ result, geojson, onClose }: Props) {
         mean_velocity_mm_yr: result.mean_velocity_mm_yr,
         max_subsidence_mm_yr: result.max_subsidence_mm_yr,
         max_uplift_mm_yr: result.max_uplift_mm_yr,
+        credits: exportCredits(caveat),
       },
       features: geojson ? [{ type: "Feature", geometry: geojson, properties: {} }] : [],
     });
@@ -74,6 +77,9 @@ export default function AoiPanel({ result, geojson, onClose }: Props) {
               <Stat label="Max subsidence" value={`${result.max_subsidence_mm_yr?.toFixed(1)} mm/yr`} color={velocityColor(result.max_subsidence_mm_yr)} />
               <Stat label="Max uplift" value={`${result.max_uplift_mm_yr?.toFixed(1)} mm/yr`} color={velocityColor(result.max_uplift_mm_yr)} />
             </div>
+
+            {result.note && <p className="text-xs text-ink-200">{result.note}</p>}
+            {caveat && <p className="text-xs text-ink-200">{caveat}</p>}
 
             {result.cluster_flags && result.cluster_flags.length > 0 && (
               <div>

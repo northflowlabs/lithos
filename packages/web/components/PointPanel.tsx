@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { api, timeSeriesToCsv } from "@/lib/api";
 import { velocityColor } from "@/lib/colormap";
+import { exportCredits } from "@/lib/credits";
 import type { PointProperties } from "@/lib/types";
 import { CiteBox } from "./CiteBox";
 import TimeSeriesChart from "./TimeSeriesChart";
@@ -12,6 +13,7 @@ interface Props {
   pointId: string;
   properties?: PointProperties;
   permalink: string;
+  caveat?: string | null;
   onClose: () => void;
 }
 
@@ -24,7 +26,8 @@ const ANOMALY_LABEL: Record<string, string> = {
   slowing: "Slowing",
   reversal: "Changed direction",
   steady_motion: "Steady motion",
-  inconclusive: "No clear trend",
+  inconclusive: "No firm trend",
+  relative_only: "Relative only, GNSS disagrees",
   stable: "Stable",
 };
 
@@ -34,14 +37,15 @@ function confidenceWord(c: number): string {
   return "low confidence";
 }
 
-export default function PointPanel({ pointId, properties, permalink, onClose }: Props) {
+export default function PointPanel({ pointId, properties, permalink, caveat, onClose }: Props) {
   const ts = useQuery({ queryKey: ["ts", pointId], queryFn: () => api.timeSeries(pointId) });
   const verdict = useQuery({ queryKey: ["verdict", pointId], queryFn: () => api.verdict(pointId) });
 
   const v = properties?.best_velocity ?? verdict.data?.velocity_mm_yr ?? null;
   const flag = verdict.data?.flags?.find((f) => f.type !== "stable") ?? verdict.data?.flags?.[0] ?? null;
   const headline = verdict.data?.headline ?? properties?.headline ?? "";
-  const missing = !ts.isLoading && !verdict.isLoading && v === null && !headline;
+  const failed = ts.isError || verdict.isError;
+  const missing = !failed && !ts.isLoading && !verdict.isLoading && v === null && !headline;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -68,6 +72,7 @@ export default function PointPanel({ pointId, properties, permalink, onClose }: 
       </header>
 
       <div className="panel-scroll flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {failed && <p className="text-sm text-ink-200">This point could not be loaded. Try again in a moment.</p>}
         {missing && (
           <p className="text-sm text-ink-200">This point is not in the current data. The link may be from an older build.</p>
         )}
@@ -85,6 +90,7 @@ export default function PointPanel({ pointId, properties, permalink, onClose }: 
               leaves out remaining atmosphere and the GNSS tie.
             </div>
           )}
+          {caveat && <div className="mt-1 text-xs text-ink-200">{caveat}</div>}
         </div>
 
         {/* plain-language verdict */}
@@ -125,7 +131,7 @@ export default function PointPanel({ pointId, properties, permalink, onClose }: 
             disabled={!ts.data}
             onClick={() => {
               if (!ts.data) return;
-              const blob = new Blob([timeSeriesToCsv(ts.data)], { type: "text/csv" });
+              const blob = new Blob([timeSeriesToCsv(ts.data, exportCredits(caveat))], { type: "text/csv" });
               const url = URL.createObjectURL(blob);
               const a = document.createElement("a");
               a.href = url;

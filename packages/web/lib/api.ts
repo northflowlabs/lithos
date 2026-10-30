@@ -3,7 +3,7 @@
 // Resolution order per call:
 //   1. If NEXT_PUBLIC_LITHOS_API is set, try the live API.
 //   2. On any failure (or if it is unset), fall back to bundled static hero assets.
-// This makes the public Vercel deploy render the full hero with no backend, while a
+// This lets a deployment render the full hero with no backend, while a
 // configured deployment uses the live engine (AOI clustering, any-bbox queries).
 
 import { staticData } from "./staticData";
@@ -55,7 +55,7 @@ export const api = {
         getJson(
           `/v1/points?bbox=${bboxParam(bbox)}&limit=${limit}&with_anomaly=${withAnomaly}`,
         ),
-      () => staticData.points(withAnomaly),
+      () => staticData.points(withAnomaly, bbox),
     ),
 
   anomalies: (bbox: [number, number, number, number], limit = 2000) =>
@@ -95,10 +95,10 @@ export const api = {
 };
 
 // Build a CSV download for a time series client-side, so export works in static mode too.
-export function timeSeriesToCsv(ts: TimeSeries): string {
-  const rows = ["date,displacement_mm,uncertainty_mm"];
+export function timeSeriesToCsv(ts: TimeSeries, notes: string[] = []): string {
+  const rows = [...notes.map((n) => `# ${n}`), "date,displacement_mm"];
   for (const s of ts.samples) {
-    rows.push(`${s.date},${s.displacement_mm ?? ""},${s.uncertainty_mm ?? ""}`);
+    rows.push(`${s.date},${s.displacement_mm ?? ""}`);
   }
   return rows.join("\n");
 }

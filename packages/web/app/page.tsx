@@ -9,9 +9,11 @@ import { HeroOverlay } from "@/components/HeroOverlay";
 import { LayerControls } from "@/components/LayerControls";
 import { Legend } from "@/components/Legend";
 import type { Layers } from "@/components/MapView";
+import { PointList } from "@/components/PointList";
 import PointPanel from "@/components/PointPanel";
 import { SearchBox } from "@/components/SearchBox";
 import { api } from "@/lib/api";
+import { ESRI_CREDIT, LICSAR_ACK, OGL_URL } from "@/lib/credits";
 import { DEFAULT_LAYERS, decodeState, encodeState, writeHash } from "@/lib/permalink";
 import type { AoiScanResult, PointProperties } from "@/lib/types";
 
@@ -22,6 +24,23 @@ type Bbox = [number, number, number, number];
 
 function roundBbox(b: Bbox): string {
   return b.map((n) => n.toFixed(3)).join(",");
+}
+
+// Split a credit so it fits the picture, however narrow the screen it was exported from.
+function wrap(ctx: CanvasRenderingContext2D, text: string, width: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(" ")) {
+    const next = line ? `${line} ${word}` : word;
+    if (ctx.measureText(next).width > width && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
 }
 
 export default function Page() {
@@ -39,6 +58,7 @@ export default function Page() {
   const [aoi, setAoi] = useState<{ result: AoiScanResult; geo: { type: "Polygon"; coordinates: number[][][] } } | null>(null);
   const [heroDismissed, setHeroDismissed] = useState(false);
   const [initFromHash, setInitFromHash] = useState(false);
+  const [listing, setListing] = useState(false);
   const mapRef = useRef<MlMap | null>(null);
 
   // Initialise from permalink hash, else from the hero scene center.
@@ -122,15 +142,19 @@ export default function Page() {
     if (!ctx) return;
     ctx.drawImage(source, 0, 0);
     const scale = source.width / source.clientWidth;
+    const size = 10 * scale;
+    ctx.font = `${size}px sans-serif`;
     const lines = [
-      "LiCSAR contains modified Copernicus Sentinel data 2021 to 2024 analysed by COMET. LiCSAR uses JASMIN.",
-      "Tiles: Esri, HERE, Garmin, (c) OpenStreetMap contributors, and the GIS user community. Map: LITHOS.",
-    ];
-    ctx.font = `${11 * scale}px sans-serif`;
-    ctx.fillStyle = "rgba(11,14,18,0.75)";
-    ctx.fillRect(0, canvas.height - 36 * scale, canvas.width, 36 * scale);
+      LICSAR_ACK,
+      `Licence: Open Government Licence v3.0, ${OGL_URL}`,
+      `Tiles: ${ESRI_CREDIT}. Map: LITHOS.`,
+      ...(hero.data?.caveat ? [hero.data.caveat] : []),
+    ].flatMap((text) => wrap(ctx, text, canvas.width - 16 * scale));
+    const height = (lines.length + 0.6) * size * 1.3;
+    ctx.fillStyle = "rgba(11,14,18,0.8)";
+    ctx.fillRect(0, canvas.height - height, canvas.width, height);
     ctx.fillStyle = "#f6f4ef";
-    lines.forEach((line, i) => ctx.fillText(line, 8 * scale, canvas.height - (22 - i * 14) * scale));
+    lines.forEach((line, i) => ctx.fillText(line, 8 * scale, canvas.height - height + (i + 1) * size * 1.3));
     const url = canvas.toDataURL("image/png");
     const a = document.createElement("a");
     a.href = url;
@@ -171,17 +195,38 @@ export default function Page() {
         drawing={drawing}
         onToggle={toggle}
         onDraw={() => setDrawing((d) => !d)}
+        onScanView={() => {
+          const b = view.bbox;
+          if (!b) return;
+          onAoi({
+            type: "Polygon",
+            coordinates: [[[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]], [b[0], b[1]]]],
+          });
+        }}
+        onListPoints={() => setListing((l) => !l)}
         onExportPng={exportPng}
       />
 
-      <Legend coverageVisible={layers.coverage} />
+      <Legend coverageVisible={layers.coverage} caveat={hero.data?.caveat} />
 
-      {heroDismissed && (points.isError || coverage.isError || points.data?.features.length === 0) && (
+      {listing && (
+        <PointList
+          points={points.data?.features ?? []}
+          onPick={(id) => {
+            setSelectedId(id);
+            setAoi(null);
+            setListing(false);
+          }}
+          onClose={() => setListing(false)}
+        />
+      )}
+
+      {(hero.isError || points.isError || coverage.isError || (heroDismissed && points.data?.features.length === 0)) && (
         <div
           role="status"
           className="pointer-events-none absolute left-1/2 top-16 z-10 w-[280px] max-w-[60vw] -translate-x-[70%] rounded-md border border-ink-700 bg-ink-900/90 px-3 py-2 text-xs text-ink-200 sm:top-4 sm:-translate-x-1/2"
         >
-          {points.isError || coverage.isError
+          {hero.isError || points.isError || coverage.isError
             ? "The data could not be loaded. Try again in a moment."
             : "No measured points in this view yet. The coverage layer shows where radar frames exist."}
         </div>
@@ -200,11 +245,12 @@ export default function Page() {
           pointId={selectedId}
           properties={selectedProps}
           permalink={permalink}
+          caveat={hero.data?.caveat}
           onClose={() => setSelectedId(null)}
         />
       )}
 
-      {aoi && <AoiPanel result={aoi.result} geojson={aoi.geo} onClose={() => setAoi(null)} />}
+      {aoi && <AoiPanel result={aoi.result} geojson={aoi.geo} caveat={hero.data?.caveat} onClose={() => setAoi(null)} />}
 
       <footer className="pointer-events-none absolute bottom-1 right-2 z-10 hidden text-[10px] text-ink-200 sm:block">
         LITHOS · dry-land motion only

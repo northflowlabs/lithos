@@ -103,7 +103,7 @@ export default function MapView(props: MapViewProps) {
           "circle-color": velocityColorExpression("best_velocity") as never,
           "circle-stroke-width": 0.4,
           "circle-stroke-color": "rgba(0,0,0,0.35)",
-          "circle-opacity": 0.92,
+          "circle-opacity": ["case", ["boolean", ["get", "relative_only"], false], 0.35, 0.92],
         },
       });
 
@@ -113,7 +113,7 @@ export default function MapView(props: MapViewProps) {
         type: "circle",
         source: "points",
         layout: { visibility: "none" },
-        filter: ["all", ["has", "anomaly_type"], ["!", ["in", ["get", "anomaly_type"], ["literal", ["stable", "inconclusive"]]]]],
+        filter: ["all", ["has", "anomaly_type"], ["!", ["in", ["get", "anomaly_type"], ["literal", ["stable", "inconclusive", "relative_only"]]]]],
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 5, 14, 11],
           "circle-color": "rgba(0,0,0,0)",
@@ -193,6 +193,11 @@ export default function MapView(props: MapViewProps) {
         propsRef.current.onMoveEnd(c.lng, c.lat, map.getZoom(), currentBbox(map));
       });
 
+      // A remounted map (basemap toggle, permalink) starts from the style's defaults, and the
+      // effects below ran before these layers existed, so apply the current state here.
+      applyLayers(map, propsRef.current.layers);
+      map.setFilter("points-selected", ["==", ["get", "id"], propsRef.current.selectedId ?? "___none___"]);
+
       propsRef.current.onMapReady(map);
       // Initial extent callback so the page can fetch points.
       const c = map.getCenter();
@@ -228,9 +233,7 @@ export default function MapView(props: MapViewProps) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.getLayer("points-circle")) return;
-    map.setLayoutProperty("points-circle", "visibility", props.layers.velocity ? "visible" : "none");
-    map.setLayoutProperty("points-anomaly", "visibility", props.layers.anomaly ? "visible" : "none");
-    map.setLayoutProperty("coverage-fill", "visibility", props.layers.coverage ? "visible" : "none");
+    applyLayers(map, props.layers);
   }, [props.layers]);
 
   useEffect(() => {
@@ -239,6 +242,7 @@ export default function MapView(props: MapViewProps) {
     map.setFilter("points-selected", ["==", ["get", "id"], props.selectedId ?? "___none___"]);
   }, [props.selectedId]);
 
+  // The source may arrive after "load" on a remount, so data is re-applied on load too.
   // Esc leaves area drawing.
   useEffect(() => {
     if (!props.drawing) return;
@@ -263,6 +267,12 @@ export default function MapView(props: MapViewProps) {
       aria-label="Ground-motion map. Use the search box to move it, and the arrow keys to pan."
     />
   );
+}
+
+function applyLayers(map: MlMap, layers: Layers) {
+  map.setLayoutProperty("points-circle", "visibility", layers.velocity ? "visible" : "none");
+  map.setLayoutProperty("points-anomaly", "visibility", layers.anomaly ? "visible" : "none");
+  map.setLayoutProperty("coverage-fill", "visibility", layers.coverage ? "visible" : "none");
 }
 
 function rectPolygon(a: [number, number], b: [number, number]) {

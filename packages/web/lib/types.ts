@@ -7,6 +7,7 @@ export interface HeroDescriptor {
   name: string;
   note?: string;
   last_epoch: string;
+  caveat?: string | null;
 }
 
 export interface PointProperties {
@@ -20,6 +21,7 @@ export interface PointProperties {
   source: string;
   product: string;
   processing_window: string | null;
+  relative_only?: boolean;
   anomaly_type?: string | null;
   anomaly_confidence?: number | null;
   anomaly_onset?: string | null;

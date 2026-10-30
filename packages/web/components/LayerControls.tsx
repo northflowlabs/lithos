@@ -7,6 +7,8 @@ interface Props {
   drawing: boolean;
   onToggle: (key: keyof Layers) => void;
   onDraw: () => void;
+  onScanView: () => void;
+  onListPoints: () => void;
   onExportPng: () => void;
 }
 
@@ -27,7 +29,7 @@ function Toggle({ on, label, onClick }: { on: boolean; label: string; onClick: (
   );
 }
 
-export function LayerControls({ layers, drawing, onToggle, onDraw, onExportPng }: Props) {
+export function LayerControls({ layers, drawing, onToggle, onDraw, onScanView, onListPoints, onExportPng }: Props) {
   return (
     <div className="absolute top-16 right-4 z-10 flex w-[150px] sm:top-4 sm:w-[170px] flex-col gap-1 rounded-md bg-ink-900/85 backdrop-blur p-2 border border-ink-700">
       <div className="px-1 text-[10px] uppercase tracking-widest text-ink-200">Layers</div>
@@ -43,6 +45,18 @@ export function LayerControls({ layers, drawing, onToggle, onDraw, onExportPng }
           }`}
         >
           {drawing ? "Drag on the map (Esc cancels)" : "Draw area"}
+        </button>
+        <button
+          onClick={onScanView}
+          className="mt-1 w-full rounded bg-ink-800 px-2.5 py-1.5 text-xs text-ink-200 hover:bg-ink-700"
+        >
+          Scan this view
+        </button>
+        <button
+          onClick={onListPoints}
+          className="mt-1 w-full rounded bg-ink-800 px-2.5 py-1.5 text-xs text-ink-200 hover:bg-ink-700"
+        >
+          List points
         </button>
         <button
           onClick={onExportPng}
