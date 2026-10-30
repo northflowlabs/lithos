@@ -34,6 +34,7 @@ interface MapViewProps {
   onPointClick: (id: string) => void;
   onMoveEnd: (lon: number, lat: number, zoom: number, bbox: [number, number, number, number]) => void;
   onAoi: (polygon: { type: "Polygon"; coordinates: number[][][] }) => void;
+  onCancelDraw: () => void;
   onMapReady: (map: MlMap) => void;
 }
 
@@ -112,7 +113,7 @@ export default function MapView(props: MapViewProps) {
         type: "circle",
         source: "points",
         layout: { visibility: "none" },
-        filter: ["all", ["has", "anomaly_type"], ["!=", ["get", "anomaly_type"], "stable"]],
+        filter: ["all", ["has", "anomaly_type"], ["!", ["in", ["get", "anomaly_type"], ["literal", ["stable", "inconclusive"]]]]],
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 5, 14, 11],
           "circle-color": "rgba(0,0,0,0)",
@@ -148,6 +149,13 @@ export default function MapView(props: MapViewProps) {
         type: "line",
         source: "aoi",
         paint: { "line-color": "#e8c547", "line-width": 1.5, "line-dasharray": [2, 1] },
+      });
+
+      // Coverage cells explain themselves, unless a measured point was clicked.
+      map.on("click", "coverage-fill", (e) => {
+        if (map.queryRenderedFeatures(e.point, { layers: ["points-circle"] }).length) return;
+        const note = e.features?.[0]?.properties?.note as string | undefined;
+        if (note) new maplibregl.Popup({ maxWidth: "240px" }).setLngLat(e.lngLat).setText(note).addTo(map);
       });
 
       map.on("click", "points-circle", (e) => {
@@ -231,10 +239,30 @@ export default function MapView(props: MapViewProps) {
     map.setFilter("points-selected", ["==", ["get", "id"], props.selectedId ?? "___none___"]);
   }, [props.selectedId]);
 
+  // Esc leaves area drawing.
+  useEffect(() => {
+    if (!props.drawing) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      drawStart.current = null;
+      mapRef.current?.dragPan.enable();
+      propsRef.current.onCancelDraw();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [props.drawing]);
+
   // Dark-mode basemap swap is handled by remounting MapView with a key in page.tsx,
   // which re-runs init with the right basemapStyle at the current center/zoom.
 
-  return <div ref={containerRef} className="absolute inset-0" aria-label="Ground-motion map" />;
+  return (
+    <div
+      ref={containerRef}
+      className="absolute inset-0"
+      role="application"
+      aria-label="Ground-motion map. Use the search box to move it, and the arrow keys to pan."
+    />
+  );
 }
 
 function rectPolygon(a: [number, number], b: [number, number]) {

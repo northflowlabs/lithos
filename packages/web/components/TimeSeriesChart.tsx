@@ -11,14 +11,19 @@ interface Props {
   height?: number;
 }
 
+const MAX_JOIN_MS = 60 * 24 * 3600 * 1000;
+
 // A compact, dependency-free displacement chart. Time on x, displacement (mm) on y.
 // Subsidence (negative) reads downward, as a journalist expects.
 export default function TimeSeriesChart({ series, onset, width = 320, height = 150 }: Props) {
   const geom = useMemo(() => {
     const pad = { l: 38, r: 8, t: 10, b: 22 };
+    const solved = series.samples.flatMap((s) =>
+      s.displacement_mm === null ? [] : [{ t: new Date(s.date).getTime(), y: s.displacement_mm }],
+    );
+    if (solved.length === 0) return null;
     const xs = series.samples.map((s) => new Date(s.date).getTime());
-    const ys = series.samples.map((s) => s.displacement_mm);
-    if (xs.length === 0) return null;
+    const ys = solved.map((s) => s.y);
     const xMin = Math.min(...xs);
     const xMax = Math.max(...xs);
     const yMin = Math.min(...ys);
@@ -30,9 +35,19 @@ export default function TimeSeriesChart({ series, onset, width = 320, height = 1
     const px = (t: number) => pad.l + ((t - xMin) / (xMax - xMin || 1)) * (width - pad.l - pad.r);
     const py = (v: number) => pad.t + (1 - (v - lo) / (hi - lo || 1)) * (height - pad.t - pad.b);
 
-    const path = series.samples
-      .map((s, i) => `${i === 0 ? "M" : "L"}${px(xs[i]).toFixed(1)},${py(s.displacement_mm).toFixed(1)}`)
-      .join(" ");
+    // A date with no solution, or a long stretch between dates, is a gap in the line.
+    let path = "";
+    let previous: number | null = null;
+    for (const s of series.samples) {
+      if (s.displacement_mm === null) {
+        previous = null;
+        continue;
+      }
+      const t = new Date(s.date).getTime();
+      const joined = previous !== null && t - previous <= MAX_JOIN_MS;
+      path += `${joined ? "L" : "M"}${px(t).toFixed(1)},${py(s.displacement_mm).toFixed(1)} `;
+      previous = t;
+    }
 
     const zeroY = py(0);
     const onsetX = onset ? px(new Date(onset).getTime()) : null;
@@ -52,7 +67,7 @@ export default function TimeSeriesChart({ series, onset, width = 320, height = 1
   if (!geom) return <div className="text-xs text-ink-200">No time series.</div>;
 
   return (
-    <svg width={width} height={height} role="img" aria-label="Displacement time series">
+    <svg width={width} height={height} role="img" aria-label={`Displacement time series, ${series.samples.length} dates`}>
       <rect x={0} y={0} width={width} height={height} fill="transparent" />
       {/* y gridlines */}
       {geom.ticks.map((t, i) => (

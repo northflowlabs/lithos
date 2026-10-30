@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { api, timeSeriesToCsv } from "@/lib/api";
 import { velocityColor } from "@/lib/colormap";
 import type { PointProperties } from "@/lib/types";
@@ -20,8 +21,10 @@ const ANOMALY_LABEL: Record<string, string> = {
   new_onset_subsidence: "New onset subsidence",
   new_onset_uplift: "New onset uplift",
   stabilising: "Stabilising",
+  slowing: "Slowing",
+  reversal: "Changed direction",
   steady_motion: "Steady motion",
-  emerging_cluster: "Emerging cluster",
+  inconclusive: "No clear trend",
   stable: "Stable",
 };
 
@@ -38,6 +41,15 @@ export default function PointPanel({ pointId, properties, permalink, onClose }: 
   const v = properties?.best_velocity ?? verdict.data?.velocity_mm_yr ?? null;
   const flag = verdict.data?.flags?.find((f) => f.type !== "stable") ?? verdict.data?.flags?.[0] ?? null;
   const headline = verdict.data?.headline ?? properties?.headline ?? "";
+  const missing = !ts.isLoading && !verdict.isLoading && v === null && !headline;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   return (
     <aside className="animate-slide-in absolute right-0 top-0 z-20 flex h-full w-[360px] max-w-[88vw] flex-col bg-ink-900/95 backdrop-blur shadow-panel border-l border-ink-700">
@@ -56,16 +68,22 @@ export default function PointPanel({ pointId, properties, permalink, onClose }: 
       </header>
 
       <div className="panel-scroll flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {missing && (
+          <p className="text-sm text-ink-200">This point is not in the current data. The link may be from an older build.</p>
+        )}
         {/* velocity headline number */}
         <div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-semibold" style={{ color: velocityColor(v) }}>
-              {v === null ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(1)}`}
+              {v === null ? "n/a" : `${v > 0 ? "+" : ""}${v.toFixed(1)}`}
             </span>
             <span className="text-sm text-ink-200">mm/year, vertical</span>
           </div>
           {properties?.velocity_uncertainty != null && (
-            <div className="text-xs text-ink-400">± {properties.velocity_uncertainty.toFixed(1)} mm/yr (1σ)</div>
+            <div className="text-xs text-ink-200">
+              ± {properties.velocity_uncertainty.toFixed(1)} mm/yr, 95% interval of the trend. It
+              leaves out remaining atmosphere and the GNSS tie.
+            </div>
           )}
         </div>
 
@@ -92,13 +110,13 @@ export default function PointPanel({ pointId, properties, permalink, onClose }: 
         {/* metadata */}
         <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
           <dt className="text-ink-400">Source</dt>
-          <dd className="text-ink-200">{properties?.source ?? "—"}</dd>
+          <dd className="text-ink-200">{properties?.source ?? "n/a"}</dd>
           <dt className="text-ink-400">Product</dt>
-          <dd className="text-ink-200">{properties?.product ?? "—"}</dd>
+          <dd className="text-ink-200">{properties?.product ?? "n/a"}</dd>
           <dt className="text-ink-400">Window</dt>
-          <dd className="text-ink-200">{properties?.processing_window ?? "—"}</dd>
+          <dd className="text-ink-200">{properties?.processing_window ?? "n/a"}</dd>
           <dt className="text-ink-400">Coherence</dt>
-          <dd className="text-ink-200">{properties?.coherence?.toFixed(2) ?? "—"}</dd>
+          <dd className="text-ink-200">{properties?.coherence?.toFixed(2) ?? "n/a"}</dd>
         </dl>
 
         {/* export */}

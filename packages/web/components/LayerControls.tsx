@@ -29,8 +29,8 @@ function Toggle({ on, label, onClick }: { on: boolean; label: string; onClick: (
 
 export function LayerControls({ layers, drawing, onToggle, onDraw, onExportPng }: Props) {
   return (
-    <div className="absolute top-4 right-4 z-10 flex w-[170px] flex-col gap-1 rounded-md bg-ink-900/85 backdrop-blur p-2 border border-ink-700">
-      <div className="px-1 text-[10px] uppercase tracking-widest text-ink-400">Layers</div>
+    <div className="absolute top-16 right-4 z-10 flex w-[150px] sm:top-4 sm:w-[170px] flex-col gap-1 rounded-md bg-ink-900/85 backdrop-blur p-2 border border-ink-700">
+      <div className="px-1 text-[10px] uppercase tracking-widest text-ink-200">Layers</div>
       <Toggle on={layers.velocity} label="Velocity" onClick={() => onToggle("velocity")} />
       <Toggle on={layers.anomaly} label="Anomaly flags" onClick={() => onToggle("anomaly")} />
       <Toggle on={layers.coverage} label="Coverage" onClick={() => onToggle("coverage")} />
@@ -42,7 +42,7 @@ export function LayerControls({ layers, drawing, onToggle, onDraw, onExportPng }
             drawing ? "bg-signal text-ink-900 font-medium" : "bg-ink-800 text-ink-200 hover:bg-ink-700"
           }`}
         >
-          {drawing ? "Drag to draw area" : "Draw area"}
+          {drawing ? "Drag on the map (Esc cancels)" : "Draw area"}
         </button>
         <button
           onClick={onExportPng}

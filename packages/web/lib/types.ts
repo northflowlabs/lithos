@@ -43,7 +43,7 @@ export type PointFeature = Feature<{ type: "Point"; coordinates: [number, number
 
 export interface TimeSeriesSample {
   date: string;
-  displacement_mm: number;
+  displacement_mm: number | null;
   uncertainty_mm: number | null;
 }
 

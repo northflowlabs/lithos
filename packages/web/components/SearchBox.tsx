@@ -19,6 +19,7 @@ export function SearchBox({ onPick }: Props) {
   const [results, setResults] = useState<NominatimResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   const search = async (text: string) => {
     if (text.trim().length < 3) {
@@ -26,16 +27,20 @@ export function SearchBox({ onPick }: Props) {
       return;
     }
     setLoading(true);
+    setMessage(null);
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(text)}`,
         { headers: { Accept: "application/json" } },
       );
+      if (!res.ok) throw new Error(`geocoder ${res.status}`);
       const data = (await res.json()) as NominatimResult[];
       setResults(data);
       setOpen(true);
+      if (data.length === 0) setMessage("No place found.");
     } catch {
       setResults([]);
+      setMessage("Search is not available right now.");
     } finally {
       setLoading(false);
     }
@@ -48,6 +53,7 @@ export function SearchBox({ onPick }: Props) {
         onChange={(e) => setQ(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") search(q);
+          if (e.key === "Escape") setOpen(false);
         }}
         onFocus={() => results.length && setOpen(true)}
         placeholder="Search a place…"
@@ -72,7 +78,9 @@ export function SearchBox({ onPick }: Props) {
           ))}
         </ul>
       )}
-      {loading && <div className="mt-1 px-3 text-[11px] text-ink-400">Searching…</div>}
+      <div role="status" className="mt-1 px-3 text-[11px] text-ink-200">
+        {loading ? "Searching…" : message}
+      </div>
     </div>
   );
 }

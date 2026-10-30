@@ -6,8 +6,8 @@ import { MOTION_STOPS } from "@/lib/colormap";
 export function Legend({ coverageVisible }: { coverageVisible: boolean }) {
   const gradient = `linear-gradient(to right, ${MOTION_STOPS.map((s) => s.color).join(", ")})`;
   return (
-    <div className="absolute bottom-6 left-4 z-10 rounded-md bg-ink-900/85 backdrop-blur px-3 py-2.5 border border-ink-700 text-[10px] text-ink-200 w-[220px]">
-      <div className="uppercase tracking-widest text-ink-400 mb-1">Vertical velocity (mm/yr)</div>
+    <div className="absolute bottom-10 left-4 z-10 rounded-md bg-ink-900/85 backdrop-blur px-3 py-2.5 border border-ink-700 text-[10px] text-ink-200 w-[220px]">
+      <div className="uppercase tracking-widest text-ink-200 mb-1">Vertical velocity (mm/yr)</div>
       <div className="h-2.5 rounded" style={{ background: gradient }} />
       <div className="flex justify-between mt-1">
         <span>-20 sinking</span>

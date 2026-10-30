@@ -16,5 +16,6 @@ permalink in the URL. Export PNG, time-series CSV, and AOI GeoJSON.
 
 npm scope: `@northflow/lithos-web` (the bare `lithos` npm name is reserved/unconfirmed).
 
-No Mapbox token: the basemap is open raster tiles, swappable via `NEXT_PUBLIC_BASEMAP_*`.
+No Mapbox token: the basemap is keyless Esri raster tiles, under Esri's terms and swappable via
+`NEXT_PUBLIC_BASEMAP_*`.
 Colours follow a colourblind-safe diverging ramp (blue uplift, grey stable, red sinking).

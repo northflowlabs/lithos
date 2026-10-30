@@ -98,7 +98,7 @@ export const api = {
 export function timeSeriesToCsv(ts: TimeSeries): string {
   const rows = ["date,displacement_mm,uncertainty_mm"];
   for (const s of ts.samples) {
-    rows.push(`${s.date},${s.displacement_mm},${s.uncertainty_mm ?? ""}`);
+    rows.push(`${s.date},${s.displacement_mm ?? ""},${s.uncertainty_mm ?? ""}`);
   }
   return rows.join("\n");
 }

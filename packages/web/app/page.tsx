@@ -113,7 +113,25 @@ export default function Page() {
   const exportPng = () => {
     const map = mapRef.current;
     if (!map) return;
-    const url = map.getCanvas().toDataURL("image/png");
+    // The credits must travel with the picture.
+    const source = map.getCanvas();
+    const canvas = document.createElement("canvas");
+    canvas.width = source.width;
+    canvas.height = source.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(source, 0, 0);
+    const scale = source.width / source.clientWidth;
+    const lines = [
+      "LiCSAR contains modified Copernicus Sentinel data 2021 to 2024 analysed by COMET. LiCSAR uses JASMIN.",
+      "Tiles: Esri, HERE, Garmin, (c) OpenStreetMap contributors, and the GIS user community. Map: LITHOS.",
+    ];
+    ctx.font = `${11 * scale}px sans-serif`;
+    ctx.fillStyle = "rgba(11,14,18,0.75)";
+    ctx.fillRect(0, canvas.height - 36 * scale, canvas.width, 36 * scale);
+    ctx.fillStyle = "#f6f4ef";
+    lines.forEach((line, i) => ctx.fillText(line, 8 * scale, canvas.height - (22 - i * 14) * scale));
+    const url = canvas.toDataURL("image/png");
     const a = document.createElement("a");
     a.href = url;
     a.download = "lithos-map.png";
@@ -137,6 +155,7 @@ export default function Page() {
         }}
         onMoveEnd={onMoveEnd}
         onAoi={onAoi}
+        onCancelDraw={() => setDrawing(false)}
         onMapReady={(m) => (mapRef.current = m)}
       />
 
@@ -157,6 +176,17 @@ export default function Page() {
 
       <Legend coverageVisible={layers.coverage} />
 
+      {heroDismissed && (points.isError || coverage.isError || points.data?.features.length === 0) && (
+        <div
+          role="status"
+          className="pointer-events-none absolute left-1/2 top-16 z-10 w-[280px] max-w-[60vw] -translate-x-[70%] rounded-md border border-ink-700 bg-ink-900/90 px-3 py-2 text-xs text-ink-200 sm:top-4 sm:-translate-x-1/2"
+        >
+          {points.isError || coverage.isError
+            ? "The data could not be loaded. Try again in a moment."
+            : "No measured points in this view yet. The coverage layer shows where radar frames exist."}
+        </div>
+      )}
+
       {!heroDismissed && hero.data && (
         <HeroOverlay
           name={hero.data.name}
@@ -176,8 +206,8 @@ export default function Page() {
 
       {aoi && <AoiPanel result={aoi.result} geojson={aoi.geo} onClose={() => setAoi(null)} />}
 
-      <footer className="pointer-events-none absolute bottom-1 right-2 z-10 text-[10px] text-ink-400">
-        LITHOS · dry-land motion only · LiCSAR contains modified Copernicus Sentinel data analysed by COMET
+      <footer className="pointer-events-none absolute bottom-1 right-2 z-10 hidden text-[10px] text-ink-200 sm:block">
+        LITHOS · dry-land motion only
       </footer>
     </main>
   );

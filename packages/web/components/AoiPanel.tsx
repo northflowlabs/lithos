@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { velocityColor } from "@/lib/colormap";
 import type { AoiScanResult } from "@/lib/types";
 
@@ -19,8 +20,22 @@ function downloadJson(name: string, data: unknown) {
   URL.revokeObjectURL(url);
 }
 
+const HOTSPOT_LABEL: Record<string, string> = {
+  subsidence: "Sinking hotspot",
+  uplift: "Rising hotspot",
+  relatively_stable: "Steadier than its surroundings",
+};
+
 export default function AoiPanel({ result, geojson, onClose }: Props) {
   const empty = result.point_count === 0;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const exportGeoJson = () => {
     downloadJson("lithos-aoi.geojson", {
@@ -55,20 +70,23 @@ export default function AoiPanel({ result, geojson, onClose }: Props) {
           <>
             <div className="grid grid-cols-2 gap-3">
               <Stat label="Mean velocity" value={`${result.mean_velocity_mm_yr?.toFixed(1)} mm/yr`} color={velocityColor(result.mean_velocity_mm_yr)} />
-              <Stat label="Anomalous" value={`${result.anomalous_count}`} />
+              <Stat label="Changed behaviour" value={`${result.anomalous_count}`} />
               <Stat label="Max subsidence" value={`${result.max_subsidence_mm_yr?.toFixed(1)} mm/yr`} color={velocityColor(result.max_subsidence_mm_yr)} />
               <Stat label="Max uplift" value={`${result.max_uplift_mm_yr?.toFixed(1)} mm/yr`} color={velocityColor(result.max_uplift_mm_yr)} />
             </div>
 
             {result.cluster_flags && result.cluster_flags.length > 0 && (
               <div>
-                <div className="text-[10px] uppercase tracking-widest text-ink-400 mb-1">Emerging clusters</div>
+                <div className="text-[10px] uppercase tracking-widest text-ink-400 mb-1">Hotspots</div>
+                <p className="mb-1.5 text-[11px] text-ink-200">
+                  Where mean velocity stands out from this area. It does not show when that began.
+                </p>
                 <ul className="space-y-1.5">
                   {result.cluster_flags.map((c, i) => (
                     <li key={i} className="rounded border-l-2 border-signal bg-ink-800 px-3 py-2 text-xs text-paper">
-                      A {String((c.evidence as { kind?: string }).kind ?? "deformation")} cluster is forming here
-                      {c.magnitude_mm_yr != null ? ` (~${c.magnitude_mm_yr.toFixed(0)} mm/yr)` : ""}.
-                      <span className="text-ink-400"> Gi* z = {String((c.evidence as { gi_z?: number }).gi_z ?? "")}</span>
+                      {HOTSPOT_LABEL[String((c.evidence as { kind?: string }).kind)] ?? "Hotspot"}
+                      {c.magnitude_mm_yr != null ? `, local mean ${c.magnitude_mm_yr.toFixed(0)} mm/yr` : ""}.
+                      <span className="text-ink-200"> Gi* z = {String((c.evidence as { gi_z?: number }).gi_z ?? "")}</span>
                     </li>
                   ))}
                 </ul>

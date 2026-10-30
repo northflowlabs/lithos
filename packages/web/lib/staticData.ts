@@ -18,7 +18,7 @@ type CoverageFC = FeatureCollection<{ type: "Polygon"; coordinates: number[][][]
 
 let _pointsCache: PointFC | null = null;
 let _verdictsCache: Record<string, PointVerdict> | null = null;
-let _tsCache: { dates: string[]; series: Record<string, number[]> } | null = null;
+let _tsCache: { dates: string[]; series: Record<string, (number | null)[]> } | null = null;
 
 async function loadJson<T>(path: string): Promise<T> {
   const res = await fetch(path, { headers: { Accept: "application/json" } });
@@ -40,9 +40,9 @@ async function verdicts(): Promise<Record<string, PointVerdict>> {
   return v;
 }
 
-async function timeseriesBlob(): Promise<{ dates: string[]; series: Record<string, number[]> }> {
+async function timeseriesBlob(): Promise<{ dates: string[]; series: Record<string, (number | null)[]> }> {
   if (_tsCache) return _tsCache;
-  const blob = await loadJson<{ dates: string[]; series: Record<string, number[]> }>(
+  const blob = await loadJson<{ dates: string[]; series: Record<string, (number | null)[]> }>(
     "/hero/timeseries.json",
   );
   _tsCache = blob;
@@ -62,6 +62,9 @@ function inPolygon(lon: number, lat: number, ring: number[][]): boolean {
   }
   return inside;
 }
+
+// Flags that say nothing changed and nothing clear is happening.
+const QUIET = ["stable", "inconclusive"];
 
 export const staticData = {
   hero: () => loadJson<HeroDescriptor>("/hero/hero.json"),
@@ -88,7 +91,7 @@ export const staticData = {
   anomalies: async (): Promise<PointFC> => {
     const fc = await points();
     const notable = fc.features.filter(
-      (f) => f.properties.anomaly_type && f.properties.anomaly_type !== "stable",
+      (f) => f.properties.anomaly_type && !QUIET.includes(f.properties.anomaly_type),
     );
     notable.sort((a, b) => (b.properties.newsworthiness ?? 0) - (a.properties.newsworthiness ?? 0));
     return {
@@ -105,7 +108,7 @@ export const staticData = {
       point_id: pointId,
       samples: blob.dates.map((d, i) => ({
         date: d,
-        displacement_mm: disp[i],
+        displacement_mm: disp[i] ?? null,
         uncertainty_mm: null,
       })),
     };
@@ -132,7 +135,10 @@ export const staticData = {
     }
     const vels = inside.map((f) => f.properties.best_velocity ?? 0);
     const anomalous = inside.filter(
-      (f) => f.properties.anomaly_type && f.properties.anomaly_type !== "stable",
+      (f) =>
+        f.properties.anomaly_type &&
+        !QUIET.includes(f.properties.anomaly_type) &&
+        f.properties.anomaly_type !== "steady_motion",
     ).length;
     const top = [...inside]
       .sort((a, b) => (b.properties.newsworthiness ?? 0) - (a.properties.newsworthiness ?? 0))
